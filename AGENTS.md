@@ -25,7 +25,7 @@ main           the plugin; the only module that wires the others together
 - `types`, `settings`, `history` and `chart-option` never import `obsidian` or `echarts`, so they test without either.
 - Only `chart` imports `echarts`.
 - `vault-notes`, `history-modal` and `settings-tab` never import each other or `main`. `main` passes them what they need.
-- The entry points a user can reach: the ribbon icon, the "Open tag size history" command, and the settings tab. Nothing is added that none of these reach.
+- The entry points a user can reach: the ribbon icon, the "Open chart" command, and the settings tab. Nothing is added that none of these reach.
 
 ## Directory layout
 
