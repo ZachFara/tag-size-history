@@ -1,12 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chartData, startOfDay, tagHistories } from "../src/history.ts";
+import { chartData, parseDate, startOfDay, tagHistories as historiesBy } from "../src/history.ts";
 import type { NoteRecord } from "../src/types.ts";
 
 /** Noon on a day of March 2024, local time. */
 const march = (day: number, hour = 12): number => new Date(2024, 2, day, hour).getTime();
 const day = (n: number): number => startOfDay(march(n));
-const note = (created: number, ...tags: string[]): NoteRecord => ({ tags, created });
+const note = (created: number, ...tags: string[]): NoteRecord => ({
+	tags,
+	created,
+	modified: created,
+	frontmatterDate: undefined,
+});
+/** Most tests go by creation date. */
+const tagHistories = (notes: NoteRecord[]): ReturnType<typeof historiesBy> => historiesBy(notes, "created");
 
 test("a note counts toward its tag from the day it was created", () => {
 	const [history] = tagHistories([note(march(1), "#book"), note(march(3), "#book"), note(march(3), "#book")]);
@@ -92,4 +99,31 @@ test("chart data does not repeat today when a note was created today", () => {
 	const data = chartData(tagHistories([note(march(9, 8), "#a")]), march(9, 20));
 	assert.deepEqual(data.days, [day(9)]);
 	assert.deepEqual(data.lines, [{ tag: "a", counts: [1] }]);
+});
+
+test("the date source picks which date a note counts from", () => {
+	const notes: NoteRecord[] = [
+		{ tags: ["#a"], created: march(1), modified: march(7), frontmatterDate: "2024-03-04" },
+	];
+	const firstDay = (source: Parameters<typeof historiesBy>[1]): number | undefined =>
+		historiesBy(notes, source)[0]?.days[0]?.[0];
+	assert.equal(firstDay("created"), day(1));
+	assert.equal(firstDay("modified"), day(7));
+	assert.equal(firstDay("frontmatter"), day(4));
+});
+
+test("a note with a missing or unreadable frontmatter date counts from its creation", () => {
+	for (const frontmatterDate of [undefined, null, "soon", "", {}, ["2024-03-04"], true]) {
+		const notes: NoteRecord[] = [{ tags: ["#a"], created: march(2), modified: march(9), frontmatterDate }];
+		assert.equal(historiesBy(notes, "frontmatter")[0]?.days[0]?.[0], day(2));
+	}
+});
+
+test("frontmatter dates are read from dates, date-times and millisecond numbers", () => {
+	assert.equal(parseDate("2024-03-04"), new Date(2024, 2, 4).getTime());
+	assert.equal(parseDate(" 2024-03-04 "), new Date(2024, 2, 4).getTime());
+	assert.equal(parseDate("2024-03-04T15:30"), new Date(2024, 2, 4, 15, 30).getTime());
+	assert.equal(parseDate(1709560800000), 1709560800000);
+	assert.equal(parseDate(Number.POSITIVE_INFINITY), null);
+	assert.equal(parseDate("not a date"), null);
 });

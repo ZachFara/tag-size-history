@@ -1,9 +1,33 @@
-import type { ChartData, NoteRecord, TagHistory } from "./types.ts";
+import type { ChartData, DateSource, NoteRecord, TagHistory } from "./types.ts";
 
 /** The start of the local calendar day that `ms` falls in. */
 export function startOfDay(ms: number): number {
 	const d = new Date(ms);
 	return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Reads a date out of a frontmatter value, which may be anything. Accepts a number of milliseconds,
+ * a `YYYY-MM-DD` date (taken as local) or any text JavaScript can parse as a date. Null otherwise.
+ */
+export function parseDate(value: unknown): number | null {
+	if (typeof value === "number") return Number.isFinite(value) ? value : null;
+	if (typeof value !== "string") return null;
+	const text = value.trim();
+	const parts = DATE_ONLY.exec(text);
+	const ms = parts
+		? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])).getTime()
+		: Date.parse(text);
+	return Number.isNaN(ms) ? null : ms;
+}
+
+/** The date a note starts counting from. A missing or unreadable frontmatter date falls back to creation. */
+function noteDate(note: NoteRecord, source: DateSource): number {
+	if (source === "modified") return note.modified;
+	if (source === "frontmatter") return parseDate(note.frontmatterDate) ?? note.created;
+	return note.created;
 }
 
 /** `#Project/Alpha` becomes `Project`: no `#`, top-level part only. Empty when there is nothing left. */
@@ -18,10 +42,10 @@ interface Tally {
 	added: Map<number, number>;
 }
 
-function tally(notes: NoteRecord[]): Map<string, Tally> {
+function tally(notes: NoteRecord[], source: DateSource): Map<string, Tally> {
 	const tallies = new Map<string, Tally>();
 	for (const note of notes) {
-		const day = startOfDay(note.created);
+		const day = startOfDay(noteDate(note, source));
 		const seen = new Set<string>();
 		for (const raw of note.tags) {
 			const tag = topLevelTag(raw);
@@ -49,10 +73,10 @@ function toHistory({ tag, added }: Tally): TagHistory {
 
 /**
  * Each tag's note count over time, largest tag first and then by name.
- * A note counts toward a tag from the day it was created. Tags differing only in case are one tag.
+ * A note counts toward a tag from its date, which `source` picks. Tags differing only in case are one tag.
  */
-export function tagHistories(notes: NoteRecord[]): TagHistory[] {
-	return [...tally(notes).values()]
+export function tagHistories(notes: NoteRecord[], source: DateSource): TagHistory[] {
+	return [...tally(notes, source).values()]
 		.map(toHistory)
 		.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
 }

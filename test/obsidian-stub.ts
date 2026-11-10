@@ -62,3 +62,18 @@ export class Modal {
 		// overridden by the modal under test
 	}
 }
+
+/** The base of a settings tab. Obsidian draws the tab from `getSettingDefinitions`; the tests read them directly. */
+export class PluginSettingTab {
+	app: unknown;
+	/** How often the tab was asked to re-evaluate which settings are visible. */
+	refreshes = 0;
+
+	constructor(app: unknown, _plugin: unknown) {
+		this.app = app;
+	}
+
+	refreshDomState(): void {
+		this.refreshes += 1;
+	}
+}

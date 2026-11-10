@@ -4,6 +4,22 @@ export interface NoteRecord {
 	tags: string[];
 	/** Creation time, in milliseconds since the epoch. */
 	created: number;
+	/** Modification time, in milliseconds since the epoch. */
+	modified: number;
+	/** The raw value of the frontmatter property named in the settings. Untrusted; may be anything. */
+	frontmatterDate: unknown;
+}
+
+/** Which date a note starts counting toward its tags from. */
+export type DateSource = "created" | "modified" | "frontmatter";
+
+/** What the plugin saves. Read saved data through `normalizeSettings`. */
+export interface Settings {
+	dateSource: DateSource;
+	/** The frontmatter property read when the date source is `frontmatter`. */
+	frontmatterProperty: string;
+	/** How many of the largest tags the chart shows. */
+	topTags: number;
 }
 
 /** One tag's note count over time. */
