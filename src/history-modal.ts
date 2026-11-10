@@ -46,7 +46,7 @@ export class TagHistoryModal extends Modal {
 
 	override onOpen(): void {
 		this.modalEl.addClass("tag-size-history-modal");
-		this.histories = tagHistories(this.notes, this.settings.dateSource);
+		this.histories = tagHistories(this.notes, this.settings);
 		if (this.histories.length === 0) {
 			this.contentEl.createEl("p", {
 				cls: "tag-size-history-empty",
@@ -86,8 +86,20 @@ export class TagHistoryModal extends Modal {
 		reset.addEventListener("click", () => {
 			this.choose({ topTags: this.settings.topTags, shownTags: [], hiddenTags: [] });
 		});
+		this.drawNestedSwitch(panel);
 		this.listEl = panel.createDiv({ cls: "tag-size-history-list" });
 		this.drawList();
+	}
+
+	/** Group nested tags under their top-level tag, or give each its own line. */
+	private drawNestedSwitch(panel: HTMLElement): void {
+		const label = panel.createEl("label", { cls: "tag-size-history-nested" });
+		const box = label.createEl("input", { type: "checkbox" });
+		box.checked = this.settings.groupNested;
+		label.createSpan({ text: "Group nested tags" });
+		box.addEventListener("change", () => {
+			this.apply({ ...this.settings, groupNested: box.checked });
+		});
 	}
 
 	/** One row per tag that matches the filter: a checkbox, the tag and its note count. */
@@ -109,12 +121,17 @@ export class TagHistoryModal extends Modal {
 		}
 	}
 
-	/** Applies new tag choices: saves them and redraws the chart and the list. */
 	private choose(choices: TagChoices): void {
-		this.settings = { ...this.settings, ...choices };
-		this.save(this.settings).catch((error: unknown) => {
+		this.apply({ ...this.settings, ...choices });
+	}
+
+	/** Applies changed settings: saves them, recounts the tags, and redraws the chart and the list. */
+	private apply(settings: Settings): void {
+		this.settings = settings;
+		this.save(settings).catch((error: unknown) => {
 			console.error("Tag Size History could not save its settings.", error);
 		});
+		this.histories = tagHistories(this.notes, settings);
 		if (this.chart && this.chartEl) this.chart.set(this.chartOption(this.chartEl));
 		this.drawList();
 	}

@@ -20,7 +20,8 @@ const note = (created: number, ...tags: string[]): NoteRecord => ({
 	frontmatterDate: undefined,
 });
 /** Most tests go by creation date. */
-const tagHistories = (notes: NoteRecord[]): ReturnType<typeof historiesBy> => historiesBy(notes, "created");
+const tagHistories = (notes: NoteRecord[]): ReturnType<typeof historiesBy> =>
+	historiesBy(notes, { dateSource: "created", groupNested: true });
 
 test("a note counts toward its tag from the day it was created", () => {
 	const [history] = tagHistories([note(march(1), "#book"), note(march(3), "#book"), note(march(3), "#book")]);
@@ -112,8 +113,8 @@ test("the date source picks which date a note counts from", () => {
 	const notes: NoteRecord[] = [
 		{ tags: ["#a"], created: march(1), modified: march(7), frontmatterDate: "2024-03-04" },
 	];
-	const firstDay = (source: Parameters<typeof historiesBy>[1]): number | undefined =>
-		historiesBy(notes, source)[0]?.days[0]?.[0];
+	const firstDay = (dateSource: Parameters<typeof historiesBy>[1]["dateSource"]): number | undefined =>
+		historiesBy(notes, { dateSource, groupNested: true })[0]?.days[0]?.[0];
 	assert.equal(firstDay("created"), day(1));
 	assert.equal(firstDay("modified"), day(7));
 	assert.equal(firstDay("frontmatter"), day(4));
@@ -122,7 +123,10 @@ test("the date source picks which date a note counts from", () => {
 test("a note with a missing or unreadable frontmatter date counts from its creation", () => {
 	for (const frontmatterDate of [undefined, null, "soon", "", {}, ["2024-03-04"], true]) {
 		const notes: NoteRecord[] = [{ tags: ["#a"], created: march(2), modified: march(9), frontmatterDate }];
-		assert.equal(historiesBy(notes, "frontmatter")[0]?.days[0]?.[0], day(2));
+		assert.equal(
+			historiesBy(notes, { dateSource: "frontmatter", groupNested: true })[0]?.days[0]?.[0],
+			day(2),
+		);
 	}
 });
 
@@ -162,4 +166,32 @@ test("switching a tag keeps only choices that differ from the largest tags", () 
 	assert.deepEqual(toggleTag(RANKED, withoutA, "a", true), start);
 
 	assert.deepEqual(toggleTag(RANKED, start, "a", true), start);
+});
+
+test("with grouping off, a nested tag has its own line and also counts toward each parent", () => {
+	const histories = historiesBy(
+		[
+			note(march(1), "#project/alpha"),
+			note(march(2), "#project/beta/one"),
+			note(march(3), "#project", "#project/alpha", "#Project/Alpha"),
+		],
+		{ dateSource: "created", groupNested: false },
+	);
+	assert.deepEqual(
+		histories.map((h) => [h.tag, h.total]),
+		[
+			["project", 3],
+			["project/alpha", 2],
+			["project/beta", 1],
+			["project/beta/one", 1],
+		],
+	);
+});
+
+test("stray slashes in a tag are ignored", () => {
+	const histories = historiesBy([note(march(1), "#a//b/")], { dateSource: "created", groupNested: false });
+	assert.deepEqual(
+		histories.map((h) => h.tag),
+		["a", "a/b"],
+	);
 });

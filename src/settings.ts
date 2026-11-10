@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	dateSource: "created",
 	frontmatterProperty: "created",
 	topTags: 10,
+	groupNested: true,
 	shownTags: [],
 	hiddenTags: [],
 };
@@ -43,6 +44,7 @@ export function normalizeSettings(raw: unknown): Settings {
 		dateSource: dateSource(saved.dateSource),
 		frontmatterProperty: propertyName(saved.frontmatterProperty),
 		topTags: topTags(saved.topTags),
+		groupNested: typeof saved.groupNested === "boolean" ? saved.groupNested : DEFAULT_SETTINGS.groupNested,
 		shownTags: tagList(saved.shownTags),
 		hiddenTags: tagList(saved.hiddenTags),
 	};

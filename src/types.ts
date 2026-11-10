@@ -20,6 +20,8 @@ export interface Settings {
 	frontmatterProperty: string;
 	/** How many of the largest tags the chart shows. */
 	topTags: number;
+	/** On: nested tags count toward their top-level tag only. Off: every nested tag has its own line. */
+	groupNested: boolean;
 	/** Tags switched on in the pop-up, in lower case. Shown even when outside the largest tags. */
 	shownTags: string[];
 	/** Tags switched off in the pop-up, in lower case. Hidden even when among the largest tags. */

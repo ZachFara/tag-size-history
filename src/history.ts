@@ -30,10 +30,21 @@ function noteDate(note: NoteRecord, source: DateSource): number {
 	return note.created;
 }
 
-/** `#Project/Alpha` becomes `Project`: no `#`, top-level part only. Empty when there is nothing left. */
-function topLevelTag(raw: string): string {
-	const tag = raw.startsWith("#") ? raw.slice(1) : raw;
-	return tag.split("/")[0] ?? "";
+/**
+ * The tags a note's tag counts toward, without `#`.
+ * Grouped: `#Project/Alpha` counts toward `Project` only.
+ * Not grouped: it counts toward `Project/Alpha` and toward `Project`, as in Obsidian's tag pane.
+ */
+function countedTags(raw: string, groupNested: boolean): string[] {
+	const parts = (raw.startsWith("#") ? raw.slice(1) : raw).split("/").filter((part) => part !== "");
+	const paths = parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+	return groupNested ? paths.slice(0, 1) : paths;
+}
+
+/** How notes are turned into tag counts. */
+export interface CountOptions {
+	dateSource: DateSource;
+	groupNested: boolean;
 }
 
 interface Tally {
@@ -42,16 +53,22 @@ interface Tally {
 	added: Map<number, number>;
 }
 
-function tally(notes: NoteRecord[], source: DateSource): Map<string, Tally> {
+/** The tags one note counts toward, keyed in lower case so each counts once, with the spelling to show. */
+function noteTags(note: NoteRecord, groupNested: boolean): Map<string, string> {
+	const tags = new Map<string, string>();
+	for (const raw of note.tags) {
+		for (const tag of countedTags(raw, groupNested)) {
+			if (!tags.has(tag.toLowerCase())) tags.set(tag.toLowerCase(), tag);
+		}
+	}
+	return tags;
+}
+
+function tally(notes: NoteRecord[], options: CountOptions): Map<string, Tally> {
 	const tallies = new Map<string, Tally>();
 	for (const note of notes) {
-		const day = startOfDay(noteDate(note, source));
-		const seen = new Set<string>();
-		for (const raw of note.tags) {
-			const tag = topLevelTag(raw);
-			const key = tag.toLowerCase();
-			if (tag === "" || seen.has(key)) continue;
-			seen.add(key);
+		const day = startOfDay(noteDate(note, options.dateSource));
+		for (const [key, tag] of noteTags(note, options.groupNested)) {
 			const entry = tallies.get(key) ?? { tag, added: new Map<number, number>() };
 			entry.added.set(day, (entry.added.get(day) ?? 0) + 1);
 			tallies.set(key, entry);
@@ -73,10 +90,10 @@ function toHistory({ tag, added }: Tally): TagHistory {
 
 /**
  * Each tag's note count over time, largest tag first and then by name.
- * A note counts toward a tag from its date, which `source` picks. Tags differing only in case are one tag.
+ * A note counts toward a tag from its date. Tags differing only in case are one tag.
  */
-export function tagHistories(notes: NoteRecord[], source: DateSource): TagHistory[] {
-	return [...tally(notes, source).values()]
+export function tagHistories(notes: NoteRecord[], options: CountOptions): TagHistory[] {
+	return [...tally(notes, options).values()]
 		.map(toHistory)
 		.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
 }

@@ -29,6 +29,14 @@
 	width: 100%;
 }
 
+.tag-size-history-nested {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
 .tag-size-history-list {
 	flex: 1 1 auto;
 	overflow-y: auto;
