@@ -9,6 +9,7 @@ test("missing or non-object saved data gives the defaults", () => {
 		dateSource: "created",
 		frontmatterProperty: "created",
 		topTags: 10,
+		groupNested: true,
 		shownTags: [],
 		hiddenTags: [],
 	});
@@ -19,6 +20,7 @@ test("good saved data is kept", () => {
 		dateSource: "frontmatter",
 		frontmatterProperty: "date",
 		topTags: 25,
+		groupNested: false,
 		shownTags: ["a"],
 		hiddenTags: ["b"],
 	};
@@ -56,4 +58,10 @@ test("tag choices are lower-cased lists of text without repeats, and anything el
 	});
 	assert.deepEqual(settings.shownTags, ["book", "film"]);
 	assert.deepEqual(settings.hiddenTags, []);
+});
+
+test("group nested tags is on unless saved as exactly false", () => {
+	assert.equal(normalizeSettings({ groupNested: false }).groupNested, false);
+	assert.equal(normalizeSettings({ groupNested: "false" }).groupNested, true);
+	assert.equal(normalizeSettings({ groupNested: 0 }).groupNested, true);
 });

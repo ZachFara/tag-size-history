@@ -40,6 +40,11 @@ export class TagHistorySettingTab extends PluginSettingTab {
 				desc: "How many of the largest tags the chart shows.",
 				control: { type: "number", key: "topTags", min: MIN_TOP_TAGS, max: MAX_TOP_TAGS, step: 1 },
 			},
+			{
+				name: "Group nested tags",
+				desc: "Count nested tags toward their top-level tag only. Turn off to give every nested tag its own line.",
+				control: { type: "toggle", key: "groupNested" },
+			},
 		];
 	}
 

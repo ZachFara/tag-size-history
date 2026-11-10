@@ -187,3 +187,42 @@ test("the filter narrows the list without changing the chart", () => {
 	assert.match(chartText(modal), /#big/);
 	modal.close();
 });
+
+const NESTED: Tagged[] = [
+	{ tags: ["#project/alpha"], created: at(1) },
+	{ tags: ["#project/beta"], created: at(2) },
+	{ tags: ["#project/alpha"], created: at(3) },
+];
+
+test("nested tags are grouped under their top-level tag to begin with", () => {
+	const modal = open(NESTED);
+	assert.deepEqual(rows(modal), [["#project", "3", true]]);
+	assert.equal(
+		modal.contentEl.querySelector<HTMLInputElement>(".tag-size-history-nested input")?.checked,
+		true,
+	);
+	modal.close();
+});
+
+test("switching grouping off gives every nested tag a row and a line, and saves the choice", () => {
+	const modal = open(NESTED);
+	modal.contentEl.querySelector<HTMLInputElement>(".tag-size-history-nested input")?.click();
+	assert.deepEqual(rows(modal), [
+		["#project", "3", true],
+		["#project/alpha", "2", true],
+		["#project/beta", "1", true],
+	]);
+	assert.match(chartText(modal), /#project\/alpha/);
+	assert.equal(saved.at(-1)?.groupNested, false);
+	modal.close();
+});
+
+test("the pop-up opens ungrouped when that was saved", () => {
+	const modal = open(NESTED, { ...DEFAULT_SETTINGS, groupNested: false });
+	assert.equal(rows(modal).length, 3);
+	assert.equal(
+		modal.contentEl.querySelector<HTMLInputElement>(".tag-size-history-nested input")?.checked,
+		false,
+	);
+	modal.close();
+});

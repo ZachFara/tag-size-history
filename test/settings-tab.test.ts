@@ -34,7 +34,7 @@ function definition(tab: TabClass, name: string): SettingDefinition {
 	return found;
 }
 
-test("the tab offers date source, frontmatter property and number of tags", () => {
+test("the tab offers date source, frontmatter property, number of tags and nested grouping", () => {
 	const { tab } = makeTab();
 	const controls = (tab.getSettingDefinitions() as SettingDefinition[]).map((d) => [
 		d.name,
@@ -45,6 +45,7 @@ test("the tab offers date source, frontmatter property and number of tags", () =
 		["Date source", "dropdown", "dateSource"],
 		["Frontmatter property", "text", "frontmatterProperty"],
 		["Number of tags", "number", "topTags"],
+		["Group nested tags", "toggle", "groupNested"],
 	]);
 	const source = definition(tab, "Date source").control;
 	assert.deepEqual(source?.type === "dropdown" && Object.keys(source.options), [
@@ -70,6 +71,13 @@ test("a change is saved", async () => {
 	const { tab, saved } = makeTab();
 	await tab.setControlValue("topTags", 20);
 	assert.deepEqual(saved, [{ ...DEFAULT_SETTINGS, topTags: 20 }]);
+});
+
+test("turning off nested grouping is saved", async () => {
+	const { tab, current } = makeTab();
+	assert.equal(tab.getControlValue("groupNested"), true);
+	await tab.setControlValue("groupNested", false);
+	assert.equal(current().groupNested, false);
 });
 
 test("a value out of range is corrected before it is saved", async () => {
