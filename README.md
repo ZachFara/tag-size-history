@@ -1,6 +1,6 @@
 # Tag Size History
 
-See how your tags have grown. Tag Size History is an Obsidian plugin that draws one line per tag, showing how many notes carry that tag over time.
+See how your tags have grown. Tag Size History is an Obsidian plugin that draws one line per tag, showing how many notes carry that tag over time. It is inspired by [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by Technerium.
 
 ![The pop-up: a line per tag, with a tooltip listing each tag's note count on the hovered date](docs/images/chart.png)
 
@@ -57,6 +57,10 @@ make obsidian-check   # run the plugin in a real, throwaway Obsidian
 ```
 
 `DESIGN.md` says what the plugin does, `AGENTS.md` has the rules of the repo, and `docs/decisions/` records how and why.
+
+## Credit
+
+Tag Size History takes its idea and the look of its chart from [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by [Technerium](https://technerium.com), which graphs the number of files in a vault over time. This plugin does the same for tags. It shares no code with Vault Size History.
 
 ## Licence
 
