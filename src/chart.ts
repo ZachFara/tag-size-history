@@ -6,16 +6,28 @@ import type { ChartOption } from "./chart-option.ts";
 
 use([LineChart, GridComponent, LegendComponent, TitleComponent, TooltipComponent, SVGRenderer]);
 
-/** Draws the chart into `el`, keeps it sized to `el`, and returns a function that removes it. */
-export function drawChart(el: HTMLElement, option: ChartOption): () => void {
+/** A chart on the page. */
+export interface Chart {
+	/** Replaces what the chart shows. */
+	set: (option: ChartOption) => void;
+	remove: () => void;
+}
+
+/** Draws the chart into `el` and keeps it sized to `el`. */
+export function drawChart(el: HTMLElement, option: ChartOption): Chart {
 	const chart = init(el, null, { renderer: "svg" });
 	chart.setOption(option);
 	const observer = new ResizeObserver(() => {
 		chart.resize();
 	});
 	observer.observe(el);
-	return () => {
-		observer.disconnect();
-		chart.dispose();
+	return {
+		set: (next) => {
+			chart.setOption(next, true);
+		},
+		remove: () => {
+			observer.disconnect();
+			chart.dispose();
+		},
 	};
 }

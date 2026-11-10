@@ -3,6 +3,8 @@
 interface CreateOptions {
 	cls?: string;
 	text?: string;
+	type?: string;
+	placeholder?: string;
 }
 
 interface WithCreateEl {
@@ -22,11 +24,16 @@ export function installDomHelpers(win: Window & typeof globalThis): void {
 			const el = this.ownerDocument.createElement(tag);
 			if (o.cls) el.className = o.cls;
 			if (o.text) el.textContent = o.text;
+			if (o.type) el.setAttribute("type", o.type);
+			if (o.placeholder) el.setAttribute("placeholder", o.placeholder);
 			this.appendChild(el);
 			return el;
 		},
 		createDiv(this: HTMLElement & WithCreateEl, o?: CreateOptions): HTMLElement {
 			return this.createEl("div", o);
+		},
+		createSpan(this: HTMLElement & WithCreateEl, o?: CreateOptions): HTMLElement {
+			return this.createEl("span", o);
 		},
 	});
 }

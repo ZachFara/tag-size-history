@@ -5,11 +5,23 @@ import { DEFAULT_SETTINGS, normalizeSettings } from "../src/settings.ts";
 test("missing or non-object saved data gives the defaults", () => {
 	for (const raw of [undefined, null, "text", 7, []])
 		assert.deepEqual(normalizeSettings(raw), DEFAULT_SETTINGS);
-	assert.deepEqual(DEFAULT_SETTINGS, { dateSource: "created", frontmatterProperty: "created", topTags: 10 });
+	assert.deepEqual(DEFAULT_SETTINGS, {
+		dateSource: "created",
+		frontmatterProperty: "created",
+		topTags: 10,
+		shownTags: [],
+		hiddenTags: [],
+	});
 });
 
 test("good saved data is kept", () => {
-	const saved = { dateSource: "frontmatter", frontmatterProperty: "date", topTags: 25 };
+	const saved = {
+		dateSource: "frontmatter",
+		frontmatterProperty: "date",
+		topTags: 25,
+		shownTags: ["a"],
+		hiddenTags: ["b"],
+	};
 	assert.deepEqual(normalizeSettings(saved), saved);
 });
 
@@ -35,4 +47,13 @@ test("the number of tags is a whole number from 1 to 50", () => {
 
 test("unknown keys are dropped", () => {
 	assert.deepEqual(normalizeSettings({ topTags: 3, extra: "x" }), { ...DEFAULT_SETTINGS, topTags: 3 });
+});
+
+test("tag choices are lower-cased lists of text without repeats, and anything else is dropped", () => {
+	const settings = normalizeSettings({
+		shownTags: ["Book", "book", 4, "", null, "film"],
+		hiddenTags: "book",
+	});
+	assert.deepEqual(settings.shownTags, ["book", "film"]);
+	assert.deepEqual(settings.hiddenTags, []);
 });
