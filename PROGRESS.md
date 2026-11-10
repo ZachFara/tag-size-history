@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 1 (setup) is merged. Phase 2 is under way: T1 to T5 are done, T6 is next. The owner waived the approval stops for the first build of MIT-655.
+The first build of MIT-655 is complete: T1 to T6 are done and version 0.1.0 is on `main`. The owner waived the approval stops for that build only; later sessions follow the rules as written, including stopping for approval.
 
 ## Tasks
 
@@ -13,7 +13,16 @@ One task per branch and PR, in order. Each starts at the entry point named and w
 - [x] **T3. Switch tags on and off in the pop-up.** Entry: the pop-up's tag panel. Search box, a checkbox per tag with its count, Reset. Choices are saved. Done when: tests cover on, off, reset, search and saving.
 - [x] **T4. Group nested tags or show them separately.** Entry: the settings tab and the pop-up's tag panel. Done when: both modes are tested in `history`, and the switch redraws the chart in the pop-up test.
 - [x] **T5. Check in a real Obsidian, README with pictures.** Entry: `make obsidian-check`. Runs the plugin in a throwaway Obsidian with a sample vault, checks the pop-up draws, and saves README pictures. Done when: the check passes locally and the README shows a real screenshot.
-- [ ] **T6. Release 0.1.0.** Bump nothing (already 0.1.0); confirm the manifest, tag only if the owner asks. Done when: the build is installed in the owner's test vault and the Linear ticket is updated.
+- [x] **T6. Hand over 0.1.0.** The build is copied into the owner's test vault with `scripts/deploy.sh`, and the Linear ticket has a summary. No tag is pushed; tagging is publishing and waits for the owner.
+
+## Ideas not asked for
+
+Listed so they are not lost. None is planned.
+
+- Record counts day by day, so tags added to old notes and deleted notes show correctly (decision 0003 explains why this was left out).
+- Keep the pop-up in sync while it is open.
+- A picture of the settings tab in the README. Obsidian 1.15 does not draw settings in the main window's page, so the check cannot photograph it yet.
+- Try the plugin on mobile. `isDesktopOnly` is false and the layout has a narrow-screen rule, but it has not been run on a phone.
 
 ## Open Questions
 
@@ -21,7 +30,7 @@ None.
 
 ## Next steps
 
-T6.
+Nothing is queued. To publish, the owner asks for a tag (see Releasing in AGENTS.md).
 
 ## Learned
 
