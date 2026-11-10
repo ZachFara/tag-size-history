@@ -13,7 +13,6 @@ interface LineSeries {
 	showSymbol: boolean;
 	symbolSize: number;
 	lineStyle: { width: number };
-	emphasis: { focus: "series" };
 	/** `[start of day, note count]` */
 	data: [number, number][];
 }
@@ -66,7 +65,6 @@ function series(data: ChartData): LineSeries[] {
 		showSymbol: false,
 		symbolSize: 6,
 		lineStyle: { width: 2 },
-		emphasis: { focus: "series" },
 		data: data.days.map((day, i): [number, number] => [day, line.counts[i] ?? 0]),
 	}));
 }
@@ -81,8 +79,8 @@ export function buildChartOption(data: ChartData, theme: ChartTheme): ChartOptio
 		title: { text: CHART_TITLE, left: 8, top: 4, textStyle: { ...text, fontSize: 16, fontWeight: 600 } },
 		legend: {
 			type: "scroll",
-			top: 6,
-			left: 190,
+			top: 34,
+			left: 8,
 			right: 16,
 			data: data.lines.map((line) => `#${line.tag}`),
 			textStyle: text,
@@ -97,7 +95,7 @@ export function buildChartOption(data: ChartData, theme: ChartTheme): ChartOptio
 		grid: {
 			left: 16,
 			right: 28,
-			top: 56,
+			top: 72,
 			bottom: 12,
 			outerBoundsMode: "same",
 			outerBoundsContain: "axisLabel",
