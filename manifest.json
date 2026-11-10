@@ -2,7 +2,7 @@
 	"id": "tag-size-history",
 	"name": "Tag Size History",
 	"version": "0.1.0",
-	"minAppVersion": "1.5.1",
+	"minAppVersion": "1.13.0",
 	"description": "Graph of the number of notes with each tag over time.",
 	"author": "Zachariah Farahany",
 	"isDesktopOnly": false

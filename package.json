@@ -28,7 +28,7 @@
 		"globals": "^17.14.0",
 		"jsdom": "^31.0.0",
 		"knip": "^6.44.1",
-		"obsidian": "1.8.7",
+		"obsidian": "^1.14.4",
 		"prettier": "^3.9.10",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.72.1"
