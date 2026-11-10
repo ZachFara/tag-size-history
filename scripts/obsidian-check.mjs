@@ -1,0 +1,306 @@
+// Runs the plugin in a real Obsidian and checks the main features. Not part of `make check`,
+// because CI has no Obsidian. Usage: make obsidian-check, or node scripts/obsidian-check.mjs --readme
+// to also refresh the README pictures in docs/images/.
+//
+// It builds the plugin, makes a throwaway vault and a throwaway Obsidian profile in a temp
+// folder, starts a separate Obsidian with a debugging port, drives it, writes screenshots to
+// .scratch/obsidian-check/, and closes that Obsidian again. The owner's own Obsidian and vaults
+// are never touched. Set OBSIDIAN_BIN to use an Obsidian somewhere other than /Applications.
+import { execFileSync, spawn } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { get } from "node:http";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+
+const ROOT = resolve(import.meta.dirname, "..");
+const ID = "tag-size-history";
+const BIN = process.env.OBSIDIAN_BIN ?? "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
+const PORT = 9400 + Math.floor(Math.random() * 400);
+const OUT = join(ROOT, ".scratch", "obsidian-check");
+/** With --readme, also saves cropped pictures of the plugin to docs/images/ for the README. */
+const README = process.argv.includes("--readme");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * The sample vault's tags: how many notes each gets and over which part of the last two years
+ * (0 is two years ago, 1 is today). Thirteen top-level tags, so the default of ten leaves three off.
+ */
+const TAGS = [
+	{ tag: "project/alpha", notes: 60, from: 0.0, to: 0.6 },
+	{ tag: "project/beta", notes: 45, from: 0.5, to: 1.0 },
+	{ tag: "book", notes: 80, from: 0.0, to: 1.0 },
+	{ tag: "idea", notes: 70, from: 0.2, to: 1.0 },
+	{ tag: "meeting", notes: 55, from: 0.4, to: 1.0 },
+	{ tag: "person", notes: 40, from: 0.0, to: 0.9 },
+	{ tag: "recipe", notes: 34, from: 0.3, to: 0.8 },
+	{ tag: "travel", notes: 28, from: 0.1, to: 1.0 },
+	{ tag: "health", notes: 24, from: 0.6, to: 1.0 },
+	{ tag: "finance", notes: 20, from: 0.0, to: 1.0 },
+	{ tag: "music", notes: 16, from: 0.7, to: 1.0 },
+	{ tag: "film", notes: 6, from: 0.2, to: 0.9 },
+	{ tag: "garden", notes: 4, from: 0.5, to: 0.7 },
+	{ tag: "quote", notes: 2, from: 0.8, to: 0.9 },
+];
+const SPAN = 730 * DAY;
+
+/** Repeatable pseudo-random numbers, so every run draws the same chart shape. */
+function random(seed) {
+	let state = seed;
+	return () => {
+		state = (state * 1664525 + 1013904223) % 4294967296;
+		return state / 4294967296;
+	};
+}
+
+/**
+ * Writes the sample notes. Each note's file times are set to its date: on macOS, setting a
+ * modification time earlier than the creation time moves the creation time back with it, which
+ * is what lets a fresh vault have a history. One extra note has an old date in its frontmatter.
+ */
+function writeNotes(vault) {
+	const next = random(7);
+	const start = Date.now() - SPAN;
+	let count = 0;
+	for (const { tag, notes, from, to } of TAGS) {
+		for (let i = 0; i < notes; i++) {
+			const when = new Date(start + (from + (to - from) * next()) * SPAN);
+			const path = join(vault, `Note ${String(++count).padStart(3, "0")}.md`);
+			writeFileSync(path, `A sample note.\n\n#${tag}\n`);
+			utimesSync(path, when, when);
+		}
+	}
+	writeFileSync(join(vault, "Old book.md"), "---\ncreated: 2019-05-01\ntags: [book]\n---\nAn old one.\n");
+	writeFileSync(join(vault, "Untagged.md"), "No tags here.\n");
+}
+
+/** A fresh vault with sample notes, and a profile that opens only it. */
+function stage() {
+	const base = mkdtempSync(join(tmpdir(), `${ID}-check-`));
+	const vault = join(base, "vault");
+	mkdirSync(join(vault, ".obsidian"), { recursive: true });
+	writeNotes(vault);
+	const profile = join(base, "profile");
+	mkdirSync(profile);
+	const vaults = { checkvault0000001: { path: vault, ts: Date.now(), open: true } };
+	writeFileSync(join(profile, "obsidian.json"), JSON.stringify({ vaults }));
+	return { base, profile, vault };
+}
+
+/**
+ * Copies the built plugin into the vault once Obsidian is running. A vault that already has plugins
+ * when it is first opened makes Obsidian ask whether to trust its author, which would block the run.
+ */
+function installPlugin(vault) {
+	const plugin = join(vault, ".obsidian", "plugins", ID);
+	mkdirSync(plugin, { recursive: true });
+	for (const f of ["main.js", "manifest.json", "styles.css"]) copyFileSync(join(ROOT, f), join(plugin, f));
+}
+
+/** Reads JSON over plain HTTP from the debugging port. */
+function getJson(url) {
+	return new Promise((resolveJson, reject) => {
+		get(url, (res) => {
+			let body = "";
+			res.on("data", (chunk) => (body += chunk));
+			res.on("end", () => {
+				try {
+					resolveJson(JSON.parse(body));
+				} catch (err) {
+					reject(err);
+				}
+			});
+		}).on("error", reject);
+	});
+}
+
+/** A tiny client for the Chrome DevTools protocol on the throwaway Obsidian. */
+async function connect() {
+	for (let i = 0; i < 60; i++) {
+		try {
+			const targets = await getJson(`http://127.0.0.1:${String(PORT)}/json`);
+			const page = targets.find((t) => t.type === "page" && t.url.startsWith("app://"));
+			if (page) return open(page.webSocketDebuggerUrl);
+		} catch {
+			// Obsidian is still starting.
+		}
+		await sleep(500);
+	}
+	throw new Error("Obsidian did not open a debugging port.");
+}
+
+async function open(url) {
+	const ws = new WebSocket(url);
+	await new Promise((r) => (ws.onopen = r));
+	let id = 0;
+	const pending = new Map();
+	ws.onmessage = (m) => {
+		const d = JSON.parse(m.data);
+		pending.get(d.id)?.(d);
+		pending.delete(d.id);
+	};
+	const send = (method, params = {}) =>
+		new Promise((r) => {
+			pending.set(++id, r);
+			ws.send(JSON.stringify({ id, method, params }));
+		});
+	const run = async (expression) => {
+		const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+		if (r.result?.exceptionDetails)
+			throw new Error(r.result.exceptionDetails.exception?.description ?? "script failed");
+		return r.result?.result?.value;
+	};
+	const shot = async (path, clip) => {
+		const r = await send("Page.captureScreenshot", {
+			format: "png",
+			...(clip ? { clip: { ...clip, scale: 1 } } : {}),
+		});
+		writeFileSync(path, Buffer.from(r.result.data, "base64"));
+	};
+	/** A fixed viewport so pictures are the same size on every machine. */
+	const emulate = () =>
+		send("Emulation.setDeviceMetricsOverride", {
+			width: 1400,
+			height: 900,
+			deviceScaleFactor: 2,
+			mobile: false,
+		});
+	return { run, shot, emulate, close: () => ws.close() };
+}
+
+// Helpers every check can use, run inside Obsidian.
+const PRELUDE = `const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const all = (s) => [...document.querySelectorAll(s)];
+const plugin = app.plugins.plugins["${ID}"];
+const closeAll = async () => { app.setting.close(); all(".modal-container .modal-bg").forEach((b) => b.click());
+  all(".modal-close-button").forEach((b) => b.click()); await sleep(300); };
+const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+const settingNames = () => [...app.setting.activeTab.containerEl.querySelectorAll(".setting-item")].filter((e) => e.getBoundingClientRect().height > 0).map((e) => e.querySelector(".setting-item-name")?.textContent);
+const openChart = async () => { await closeAll(); app.commands.executeCommandById("${ID}:open"); await sleep(1500); };
+const chartText = () => all(".tag-size-history-chart svg text").map((t) => t.textContent);
+const lines = () => chartText().filter((t) => t.startsWith("#"));
+const rows = () => all(".tag-size-history-tag").map((r) => ({ tag: r.querySelector(".tag-size-history-name").textContent,
+  count: Number(r.querySelector(".tag-size-history-count").textContent), on: r.querySelector("input").checked }));
+const box = (tag) => all(".tag-size-history-tag").find((r) => r.querySelector(".tag-size-history-name").textContent === tag).querySelector("input");
+const clipOf = (s) => rectOf(document.querySelector(s));
+const hover = async (fx, fy) => { const svg = document.querySelector(".tag-size-history-chart svg"); const r = svg.getBoundingClientRect();
+  const at = { clientX: r.x + r.width * fx, clientY: r.y + r.height * fy, bubbles: true };
+  svg.dispatchEvent(new MouseEvent("mousemove", at)); await sleep(600); };`;
+
+const CHECKS = [
+	{
+		// The default: the ten largest tags by creation date, nested tags grouped.
+		name: "chart",
+		script: `await openChart(); return { title: chartText().includes("Tag size history"), lines: lines(), rows: rows(),
+  width: clipOf(".tag-size-history-chart").width, open: all(".tag-size-history-modal").length };`,
+		expect: (r) =>
+			r.title &&
+			r.lines.length === 10 &&
+			r.lines[0] === "#project" &&
+			r.rows.length === 13 &&
+			r.rows[0].count === 105 &&
+			r.rows.find((row) => row.tag === "#book").count === 81 &&
+			r.rows.filter((row) => row.on).length === 10 &&
+			r.width > 600 &&
+			r.open === 1,
+	},
+	{
+		// Hovering lists every line's count on that date, as Vault Size History does.
+		name: "tooltip",
+		readme: "chart",
+		script: `await openChart(); await hover(0.6, 0.5);
+const tip = all(".tag-size-history-chart div").map((d) => d.innerText).find((t) => t.includes("#book")) ?? "";
+return { tip: tip.split("\\n").filter((l) => l.startsWith("#")).length, clip: clipOf(".modal.tag-size-history-modal") };`,
+		expect: (r) => r.tip === 10,
+	},
+	{
+		name: "toggle",
+		script: `await openChart(); box("#film").click(); box("#book").click(); await sleep(500);
+const after = { lines: lines(), shown: plugin.settings.shownTags, hidden: plugin.settings.hiddenTags };
+document.querySelector(".tag-size-history-reset").click(); await sleep(500);
+return { ...after, reset: lines().length, saved: (await plugin.loadData()).hiddenTags.length };`,
+		expect: (r) =>
+			r.lines.includes("#film") &&
+			!r.lines.includes("#book") &&
+			r.shown.join() === "film" &&
+			r.hidden.join() === "book" &&
+			r.reset === 10 &&
+			r.saved === 0,
+	},
+	{
+		name: "nested",
+		readme: "nested",
+		script: `await openChart(); document.querySelector(".tag-size-history-nested input").click(); await sleep(1800); // new lines draw in over a second
+const result = { rows: rows().map((r) => r.tag), lines: lines(), saved: plugin.settings.groupNested, clip: clipOf(".modal.tag-size-history-modal") };
+return result;`,
+		expect: (r) =>
+			r.rows.includes("#project/alpha") &&
+			r.rows.includes("#project") &&
+			r.lines.includes("#project/beta") &&
+			r.saved === false,
+	},
+	{
+		name: "settings",
+		script: `await openChart(); document.querySelector(".tag-size-history-nested input").click(); await closeAll();
+app.setting.open(); app.setting.openTabById("${ID}"); await sleep(800);
+return { names: settingNames(), open: all(".tag-size-history-modal").length };`,
+		expect: (r) => r.names.join() === "Date source,Number of tags,Group nested tags" && r.open === 0,
+	},
+	{
+		// The frontmatter source: one note says 2019, so the axis reaches back that far.
+		name: "frontmatter",
+		script: `await closeAll(); app.setting.open(); app.setting.openTabById("${ID}"); await sleep(500);
+const tab = app.setting.pluginTabs.find((t) => t.id === "${ID}");
+await tab.setControlValue("dateSource", "frontmatter"); await sleep(300);
+const shown = settingNames();
+await openChart();
+return { shown, years: chartText().filter((t) => /^20\\d\\d$/.test(t)), saved: (await plugin.loadData()).dateSource };`,
+		expect: (r) =>
+			r.shown.includes("Frontmatter property") && r.years.includes("2020") && r.saved === "frontmatter",
+	},
+];
+
+async function main() {
+	execFileSync("npm", ["run", "build"], { cwd: ROOT, stdio: "ignore" });
+	rmSync(OUT, { recursive: true, force: true });
+	mkdirSync(OUT, { recursive: true });
+	if (README) mkdirSync(join(ROOT, "docs", "images"), { recursive: true });
+	const { base, profile, vault } = stage();
+	const app = spawn(BIN, [`--user-data-dir=${profile}`, `--remote-debugging-port=${String(PORT)}`], {
+		stdio: "ignore",
+	});
+	let failed = 0;
+	try {
+		const cdp = await connect();
+		await cdp.emulate();
+		await sleep(2000);
+		installPlugin(vault);
+		const enabled = await cdp.run(`(async () => {
+			await app.plugins.loadManifests();
+			await app.plugins.setEnable(true);
+			await app.plugins.enablePlugin("${ID}");
+			// enablePlugin loads the plugin without adding it to the saved list, so check it is loaded.
+			return Boolean(app.plugins.plugins["${ID}"]);
+		})()`);
+		if (!enabled) throw new Error("The plugin did not switch on in the throwaway Obsidian.");
+		for (const check of CHECKS) {
+			const { clip, ...result } = await cdp.run(`(async () => { ${PRELUDE}\n${check.script} })()`);
+			await cdp.shot(join(OUT, `${check.name}.png`));
+			if (README && check.readme) await cdp.shot(join(ROOT, "docs", "images", `${check.readme}.png`), clip);
+			const ok = check.expect(result);
+			if (!ok) failed++;
+			console.log(`${ok ? "ok  " : "FAIL"} ${check.name} ${JSON.stringify(result)}`);
+		}
+		cdp.close();
+	} finally {
+		const exited = new Promise((r) => app.once("exit", r));
+		app.kill();
+		await Promise.race([exited, sleep(5000)]);
+		// Obsidian can still be flushing its profile for a moment after it exits.
+		rmSync(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+	}
+	console.log(`Screenshots in ${OUT}`);
+	if (failed) process.exit(1);
+}
+
+await main();
