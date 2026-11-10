@@ -49,7 +49,7 @@ Known limits, stated in the README: the chart cannot know when a tag was added t
 Nothing is built that none of these reach.
 
 1. **Ribbon icon** "Tag size history": opens the pop-up.
-2. **Command** "Open tag size history": opens the pop-up.
+2. **Command** "Open chart" (shown by Obsidian as "Tag Size History: Open chart"): opens the pop-up.
 3. **Settings tab**: Date source, Frontmatter property (shown when the source is a frontmatter property), Number of tags, Group nested tags.
 
 ## The pop-up

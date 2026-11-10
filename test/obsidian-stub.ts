@@ -1,0 +1,64 @@
+// Minimal stand-in for the parts of Obsidian's API that the UI modules touch.
+
+interface CreateOptions {
+	cls?: string;
+	text?: string;
+}
+
+interface WithCreateEl {
+	createEl(tag: string, o?: CreateOptions): HTMLElement;
+}
+
+/** Obsidian adds these helpers to every HTMLElement. */
+export function installDomHelpers(win: Window & typeof globalThis): void {
+	Object.assign(win.HTMLElement.prototype, {
+		empty(this: HTMLElement): void {
+			this.replaceChildren();
+		},
+		addClass(this: HTMLElement, cls: string): void {
+			this.classList.add(cls);
+		},
+		createEl(this: HTMLElement, tag: string, o: CreateOptions = {}): HTMLElement {
+			const el = this.ownerDocument.createElement(tag);
+			if (o.cls) el.className = o.cls;
+			if (o.text) el.textContent = o.text;
+			this.appendChild(el);
+			return el;
+		},
+		createDiv(this: HTMLElement & WithCreateEl, o?: CreateOptions): HTMLElement {
+			return this.createEl("div", o);
+		},
+	});
+}
+
+/** A modal that attaches itself to the document on open, as Obsidian's does. */
+export class Modal {
+	app: unknown;
+	modalEl: HTMLElement;
+	contentEl: HTMLElement;
+
+	constructor(app: unknown) {
+		this.app = app;
+		this.modalEl = document.createElement("div");
+		this.modalEl.className = "modal";
+		this.contentEl = this.modalEl.appendChild(document.createElement("div"));
+	}
+
+	open(): void {
+		document.body.appendChild(this.modalEl);
+		this.onOpen();
+	}
+
+	close(): void {
+		this.onClose();
+		this.modalEl.remove();
+	}
+
+	onOpen(): void {
+		// overridden by the modal under test
+	}
+
+	onClose(): void {
+		// overridden by the modal under test
+	}
+}

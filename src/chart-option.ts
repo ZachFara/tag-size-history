@@ -1,0 +1,115 @@
+import type { ChartData, ChartTheme } from "./types.ts";
+
+interface TextStyle {
+	color?: string;
+	fontFamily?: string;
+	fontSize?: number;
+	fontWeight?: number;
+}
+
+interface LineSeries {
+	name: string;
+	type: "line";
+	showSymbol: boolean;
+	symbolSize: number;
+	lineStyle: { width: number };
+	emphasis: { focus: "series" };
+	/** `[start of day, note count]` */
+	data: [number, number][];
+}
+
+/** The chart, described as the plain object ECharts takes. Built here so it can be tested without ECharts. */
+export interface ChartOption {
+	[key: string]: unknown;
+	backgroundColor: "transparent";
+	textStyle: TextStyle;
+	title: { text: string; left: number; top: number; textStyle: TextStyle };
+	legend: { type: "scroll"; top: number; left: number; right: number; data: string[]; textStyle: TextStyle };
+	tooltip: {
+		trigger: "axis";
+		order: "valueDesc";
+		backgroundColor?: string;
+		borderColor?: string;
+		textStyle: TextStyle;
+	};
+	grid: {
+		left: number;
+		right: number;
+		top: number;
+		bottom: number;
+		/** Together these keep the axis labels inside the margins. */
+		outerBoundsMode: "same";
+		outerBoundsContain: "axisLabel";
+	};
+	xAxis: { type: "time"; axisLabel: TextStyle & { hideOverlap: true }; splitLine: { show: false } };
+	yAxis: {
+		type: "value";
+		min: 0;
+		minInterval: 1;
+		axisLabel: TextStyle;
+		splitLine: { lineStyle: { color?: string } };
+	};
+	series: LineSeries[];
+}
+
+const CHART_TITLE = "Tag size history";
+
+/** Leaves a key out when the theme has no value for it, so ECharts keeps its default. */
+function colour(value: string): { color?: string } {
+	return value === "" ? {} : { color: value };
+}
+
+function series(data: ChartData): LineSeries[] {
+	return data.lines.map((line) => ({
+		name: `#${line.tag}`,
+		type: "line",
+		showSymbol: false,
+		symbolSize: 6,
+		lineStyle: { width: 2 },
+		emphasis: { focus: "series" },
+		data: data.days.map((day, i): [number, number] => [day, line.counts[i] ?? 0]),
+	}));
+}
+
+/** One line per tag over a date axis, with a legend and a tooltip listing every line on the hovered date. */
+export function buildChartOption(data: ChartData, theme: ChartTheme): ChartOption {
+	const text = colour(theme.text);
+	const muted = colour(theme.muted);
+	return {
+		backgroundColor: "transparent",
+		textStyle: { ...text, ...(theme.font === "" ? {} : { fontFamily: theme.font }) },
+		title: { text: CHART_TITLE, left: 8, top: 4, textStyle: { ...text, fontSize: 16, fontWeight: 600 } },
+		legend: {
+			type: "scroll",
+			top: 6,
+			left: 190,
+			right: 16,
+			data: data.lines.map((line) => `#${line.tag}`),
+			textStyle: text,
+		},
+		tooltip: {
+			trigger: "axis",
+			order: "valueDesc",
+			...(theme.background === "" ? {} : { backgroundColor: theme.background }),
+			...(theme.border === "" ? {} : { borderColor: theme.border }),
+			textStyle: text,
+		},
+		grid: {
+			left: 16,
+			right: 28,
+			top: 56,
+			bottom: 12,
+			outerBoundsMode: "same",
+			outerBoundsContain: "axisLabel",
+		},
+		xAxis: { type: "time", axisLabel: { ...muted, hideOverlap: true }, splitLine: { show: false } },
+		yAxis: {
+			type: "value",
+			min: 0,
+			minInterval: 1,
+			axisLabel: muted,
+			splitLine: { lineStyle: colour(theme.border) },
+		},
+		series: series(data),
+	};
+}
