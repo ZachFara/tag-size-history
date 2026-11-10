@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chartData, parseDate, startOfDay, tagHistories as historiesBy } from "../src/history.ts";
+import {
+	chartData,
+	parseDate,
+	shownHistories,
+	startOfDay,
+	tagHistories as historiesBy,
+	toggleTag,
+} from "../src/history.ts";
 import type { NoteRecord } from "../src/types.ts";
 
 /** Noon on a day of March 2024, local time. */
@@ -126,4 +133,33 @@ test("frontmatter dates are read from dates, date-times and millisecond numbers"
 	assert.equal(parseDate(1709560800000), 1709560800000);
 	assert.equal(parseDate(Number.POSITIVE_INFINITY), null);
 	assert.equal(parseDate("not a date"), null);
+});
+
+/** Ranked a (3 notes), b (2), c (1). */
+const RANKED = tagHistories([
+	note(march(1), "#a", "#b", "#c"),
+	note(march(2), "#a", "#b"),
+	note(march(3), "#a"),
+]);
+const shownTags = (choices: Parameters<typeof shownHistories>[1]): string[] =>
+	shownHistories(RANKED, choices).map((h) => h.tag);
+
+test("the largest tags are shown, plus those switched on, minus those switched off", () => {
+	assert.deepEqual(shownTags({ topTags: 2, shownTags: [], hiddenTags: [] }), ["a", "b"]);
+	assert.deepEqual(shownTags({ topTags: 2, shownTags: ["c"], hiddenTags: [] }), ["a", "b", "c"]);
+	assert.deepEqual(shownTags({ topTags: 2, shownTags: ["c"], hiddenTags: ["a"] }), ["b", "c"]);
+	assert.deepEqual(shownTags({ topTags: 5, shownTags: [], hiddenTags: ["gone"] }), ["a", "b", "c"]);
+});
+
+test("switching a tag keeps only choices that differ from the largest tags", () => {
+	const start = { topTags: 2, shownTags: [], hiddenTags: [] };
+	const withC = toggleTag(RANKED, start, "c", true);
+	assert.deepEqual(withC, { topTags: 2, shownTags: ["c"], hiddenTags: [] });
+	assert.deepEqual(toggleTag(RANKED, withC, "c", false), start);
+
+	const withoutA = toggleTag(RANKED, start, "A", false);
+	assert.deepEqual(withoutA, { topTags: 2, shownTags: [], hiddenTags: ["a"] });
+	assert.deepEqual(toggleTag(RANKED, withoutA, "a", true), start);
+
+	assert.deepEqual(toggleTag(RANKED, start, "a", true), start);
 });

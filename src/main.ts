@@ -24,16 +24,18 @@ export default class TagSizeHistoryPlugin extends Plugin {
 		this.addSettingTab(
 			new TagHistorySettingTab(this.app, this, {
 				get: () => this.settings,
-				save: async (settings) => {
-					this.settings = settings;
-					await this.saveData(settings);
-				},
+				save: (settings) => this.saveSettings(settings),
 			}),
 		);
 	}
 
+	private async saveSettings(settings: Settings): Promise<void> {
+		this.settings = settings;
+		await this.saveData(settings);
+	}
+
 	private openHistory(): void {
 		const notes = readNotes(this.app, this.settings.frontmatterProperty);
-		new TagHistoryModal(this.app, notes, this.settings).open();
+		new TagHistoryModal(this.app, notes, this.settings, (settings) => this.saveSettings(settings)).open();
 	}
 }

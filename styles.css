@@ -1,15 +1,89 @@
 /* The pop-up is wide, like the chart it holds. */
 .modal.tag-size-history-modal {
-	width: min(1100px, 92vw);
+	width: min(1200px, 94vw);
+}
+
+.tag-size-history-layout {
+	display: flex;
+	gap: var(--size-4-4);
+	height: min(620px, 70vh);
 }
 
 .tag-size-history-chart {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 100%;
+}
+
+/* The tag panel: filter, reset, then a scrolling list of tags. */
+.tag-size-history-panel {
+	flex: 0 0 220px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	min-height: 0;
+	padding-top: var(--size-4-6);
+}
+
+.tag-size-history-search {
 	width: 100%;
-	height: min(620px, 70vh);
+}
+
+.tag-size-history-list {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: var(--size-4-1);
+}
+
+.tag-size-history-tag {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-1);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.tag-size-history-tag:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.tag-size-history-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tag-size-history-count {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
 }
 
 .tag-size-history-empty {
 	color: var(--text-muted);
 	text-align: center;
 	padding: var(--size-4-8) 0;
+}
+
+/* On a narrow screen the panel goes under the chart. */
+@media (max-width: 700px) {
+	.tag-size-history-layout {
+		flex-direction: column;
+		height: auto;
+	}
+
+	.tag-size-history-chart {
+		flex: none;
+		height: 55vh;
+	}
+
+	.tag-size-history-panel {
+		flex: none;
+		max-height: 30vh;
+		padding-top: 0;
+	}
 }

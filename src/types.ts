@@ -20,7 +20,14 @@ export interface Settings {
 	frontmatterProperty: string;
 	/** How many of the largest tags the chart shows. */
 	topTags: number;
+	/** Tags switched on in the pop-up, in lower case. Shown even when outside the largest tags. */
+	shownTags: string[];
+	/** Tags switched off in the pop-up, in lower case. Hidden even when among the largest tags. */
+	hiddenTags: string[];
 }
+
+/** The part of the settings that decides which tags have a line. */
+export type TagChoices = Pick<Settings, "topTags" | "shownTags" | "hiddenTags">;
 
 /** One tag's note count over time. */
 export interface TagHistory {

@@ -55,7 +55,12 @@ test("the tab offers date source, frontmatter property and number of tags", () =
 });
 
 test("controls show the current settings", () => {
-	const { tab } = makeTab({ dateSource: "modified", frontmatterProperty: "date", topTags: 4 });
+	const { tab } = makeTab({
+		...DEFAULT_SETTINGS,
+		dateSource: "modified",
+		frontmatterProperty: "date",
+		topTags: 4,
+	});
 	assert.equal(tab.getControlValue("dateSource"), "modified");
 	assert.equal(tab.getControlValue("frontmatterProperty"), "date");
 	assert.equal(tab.getControlValue("topTags"), 4);

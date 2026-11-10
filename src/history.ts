@@ -1,4 +1,4 @@
-import type { ChartData, DateSource, NoteRecord, TagHistory } from "./types.ts";
+import type { ChartData, DateSource, NoteRecord, TagChoices, TagHistory } from "./types.ts";
 
 /** The start of the local calendar day that `ms` falls in. */
 export function startOfDay(ms: number): number {
@@ -79,6 +79,35 @@ export function tagHistories(notes: NoteRecord[], source: DateSource): TagHistor
 	return [...tally(notes, source).values()]
 		.map(toHistory)
 		.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
+}
+
+/**
+ * The tags that have a line: the largest `topTags` of the ranked `histories`, plus the tags switched on,
+ * minus the tags switched off.
+ */
+export function shownHistories(histories: TagHistory[], choices: TagChoices): TagHistory[] {
+	const on = new Set(choices.shownTags);
+	const off = new Set(choices.hiddenTags);
+	return histories.filter((history, rank) => {
+		const key = history.tag.toLowerCase();
+		return (rank < choices.topTags || on.has(key)) && !off.has(key);
+	});
+}
+
+/** The choices after switching one tag on or off. Only a choice that differs from the largest tags is kept. */
+export function toggleTag(
+	histories: TagHistory[],
+	choices: TagChoices,
+	tag: string,
+	on: boolean,
+): TagChoices {
+	const key = tag.toLowerCase();
+	const inTop = histories.slice(0, choices.topTags).some((h) => h.tag.toLowerCase() === key);
+	const shownTags = choices.shownTags.filter((t) => t !== key);
+	const hiddenTags = choices.hiddenTags.filter((t) => t !== key);
+	if (on && !inTop) shownTags.push(key);
+	if (!on && inTop) hiddenTags.push(key);
+	return { topTags: choices.topTags, shownTags, hiddenTags };
 }
 
 /** A tag's count on each of `days`, carrying the last count forward. Zero before its first note. */
