@@ -2,7 +2,7 @@
 
 See how your tags have grown. Tag Size History is an Obsidian plugin that draws one line per tag, showing how many notes carry that tag over time. It is inspired by [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by Technerium.
 
-![The pop-up: a line per tag, with a tooltip listing each tag's note count on the hovered date](docs/images/chart.png)
+![The pop-up opens and a line per tag draws in from left to right, two years of notes in a second](docs/images/grow.gif)
 
 ## Using it
 
@@ -13,7 +13,17 @@ Click the chart icon in the ribbon, or run **Tag Size History: Open chart** from
 - Use the panel on the right to switch any tag on or off. Type in the box to filter the list. Your choices are remembered. **Reset** goes back to the largest tags.
 - **Group nested tags** decides how `#project/alpha` is counted. On, it counts toward `#project` only. Off, it also gets a line of its own.
 
-![With grouping off, nested tags have their own lines](docs/images/nested.png)
+![A tooltip sweeps across the dates, tags are switched on and off, and nested tags are split into their own lines](docs/images/demo.gif)
+
+![The pop-up in the dark theme, with a tooltip listing each tag's note count on the hovered date](docs/images/chart.png)
+
+The chart follows your theme, light or dark.
+
+![The same chart in the light theme](docs/images/chart-light.png)
+
+With **Group nested tags** off, nested tags get lines of their own:
+
+![Nested tags such as project/alpha and project/beta drawn as separate lines](docs/images/nested.png)
 
 ## Settings
 

@@ -2,6 +2,8 @@
 // because CI has no Obsidian. Usage: make obsidian-check, or node scripts/obsidian-check.mjs --readme
 // to also refresh the README pictures in docs/images/.
 //
+// The --readme run also records docs/images/demo.gif, which needs ffmpeg on the PATH.
+//
 // It builds the plugin, makes a throwaway vault and a throwaway Obsidian profile in a temp
 // folder, starts a separate Obsidian with a debugging port, drives it, writes screenshots to
 // .scratch/obsidian-check/, and closes that Obsidian again. The owner's own Obsidian and vaults
@@ -150,10 +152,10 @@ async function open(url) {
 			throw new Error(r.result.exceptionDetails.exception?.description ?? "script failed");
 		return r.result?.result?.value;
 	};
-	const shot = async (path, clip) => {
+	const shot = async (path, clip, scale = 1) => {
 		const r = await send("Page.captureScreenshot", {
 			format: "png",
-			...(clip ? { clip: { ...clip, scale: 1 } } : {}),
+			...(clip ? { clip: { ...clip, scale } } : {}),
 		});
 		writeFileSync(path, Buffer.from(r.result.data, "base64"));
 	};
@@ -165,7 +167,12 @@ async function open(url) {
 			deviceScaleFactor: 2,
 			mobile: false,
 		});
-	return { run, shot, emulate, close: () => ws.close() };
+	/** A quick picture of the whole page. Unlike a clipped one, it does not disturb the page's size. */
+	const frame = async (path) => {
+		const r = await send("Page.captureScreenshot", { format: "jpeg", quality: 92 });
+		writeFileSync(path, Buffer.from(r.result.data, "base64"));
+	};
+	return { run, shot, frame, emulate, close: () => ws.close() };
 }
 
 // Helpers every check can use, run inside Obsidian.
@@ -185,7 +192,11 @@ const box = (tag) => all(".tag-size-history-tag").find((r) => r.querySelector(".
 const clipOf = (s) => rectOf(document.querySelector(s));
 const hover = async (fx, fy) => { const svg = document.querySelector(".tag-size-history-chart svg"); const r = svg.getBoundingClientRect();
   const at = { clientX: r.x + r.width * fx, clientY: r.y + r.height * fy, bubbles: true };
-  svg.dispatchEvent(new MouseEvent("mousemove", at)); await sleep(600); };`;
+  svg.dispatchEvent(new MouseEvent("mousemove", at)); await sleep(600); };
+const hoverNow = (fx) => { const svg = document.querySelector(".tag-size-history-chart svg"); const r = svg.getBoundingClientRect();
+  svg.dispatchEvent(new MouseEvent("mousemove", { clientX: r.x + r.width * fx, clientY: r.y + r.height * 0.5, bubbles: true })); };
+const defaults = async () => { const tab = app.setting.pluginTabs.find((t) => t.id === "${ID}");
+  await tab.setControlValue("dateSource", "created"); await tab.setControlValue("groupNested", true); };`;
 
 const CHECKS = [
 	{
@@ -205,6 +216,14 @@ const CHECKS = [
 			r.open === 1,
 	},
 	{
+		// The lines draw in from the left when the pop-up opens: early on they cover less than later.
+		name: "grows",
+		script: `await closeAll(); app.commands.executeCommandById("${ID}:open"); await sleep(250);
+const drawn = () => Math.max(0, ...all(".tag-size-history-chart svg clipPath *").map((e) => e.getBBox().width));
+const early = drawn(); await sleep(2200); return { early, late: drawn() };`,
+		expect: (r) => r.early > 0 && r.early < r.late,
+	},
+	{
 		// Hovering lists every line's count on that date, as Vault Size History does.
 		name: "tooltip",
 		readme: "chart",
@@ -212,6 +231,15 @@ const CHECKS = [
 const tip = all(".tag-size-history-chart div").map((d) => d.innerText).find((t) => t.includes("#book")) ?? "";
 return { tip: tip.split("\\n").filter((l) => l.startsWith("#")).length, clip: clipOf(".modal.tag-size-history-modal") };`,
 		expect: (r) => r.tip === 10,
+	},
+	{
+		// Moving the pointer along the chart moves the tooltip through the dates.
+		name: "sweep",
+		script: `await openChart(); const dates = [];
+const tipDate = () => /\\d{4}-\\d{2}-\\d{2}/.exec(document.querySelector(".tag-size-history-chart").innerText)?.[0] ?? "";
+for (const fx of [0.2, 0.4, 0.6, 0.8]) { hoverNow(fx); await sleep(400); dates.push(tipDate()); }
+return { dates };`,
+		expect: (r) => new Set(r.dates).size === 4 && [...r.dates].sort().join() === r.dates.join(),
 	},
 	{
 		name: "toggle",
@@ -260,6 +288,84 @@ return { shown, years: chartText().filter((t) => /^20\\d\\d$/.test(t)), saved: (
 	},
 ];
 
+/**
+ * Joins numbered whole-page frames into a looping GIF of the area `clip`, at the speed they were taken.
+ * The page is drawn at twice its size, so the crop is doubled and the result is scaled back down.
+ */
+function gif(frames, target, clip, fps) {
+	const crop = [clip.width, clip.height, clip.x, clip.y].map((n) => String(Math.round(n * 2))).join(":");
+	const filter = `crop=${crop},scale=${String(Math.round(clip.width))}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+	execFileSync(
+		"ffmpeg",
+		[
+			...["-y", "-loglevel", "error", "-framerate", fps.toFixed(2), "-i", join(frames, "f%03d.jpg")],
+			...["-vf", filter, "-loop", "0", target],
+		],
+		{ stdio: "inherit" },
+	);
+}
+
+/**
+ * Records the README's moving pictures and a still in the light theme. Frames are pictures of the
+ * whole page, taken as fast as Obsidian gives them, and ffmpeg crops and joins them. A clipped
+ * picture would be smaller, but taking one briefly changes the page's size, which redraws the chart.
+ *   grow.gif: the pop-up opens and the lines draw in.
+ *   demo.gif: the tooltip sweeps across, tags are switched, and nested tags are ungrouped.
+ */
+async function recordDemo(cdp) {
+	const images = join(ROOT, "docs", "images");
+	const page = (script) => cdp.run(`(async () => { ${PRELUDE}\n${script} })()`);
+	let frames;
+	let count = 0;
+	let clip;
+	let started = 0;
+	const reel = (name) => {
+		frames = join(OUT, name);
+		mkdirSync(frames, { recursive: true });
+		count = 0;
+		started = Date.now();
+	};
+	const film = async (n = 1) => {
+		for (let i = 0; i < n; i++) await cdp.frame(join(frames, `f${String(count++).padStart(3, "0")}.jpg`));
+	};
+	const cut = (name) => {
+		gif(frames, join(images, name), clip, (count * 1000) / (Date.now() - started));
+	};
+
+	// Open once to learn where things sit, then again to film the lines drawing in from the start.
+	clip = await page(`await defaults(); await openChart(); return clipOf(".modal.tag-size-history-modal");`);
+
+	reel("grow");
+	await page(`await closeAll(); app.commands.executeCommandById("${ID}:open");`);
+	await film(24);
+	cut("grow.gif");
+
+	reel("demo");
+	for (let i = 0; i <= 40; i++) {
+		await page(`hoverNow(${String(0.1 + (0.8 * i) / 40)}); await sleep(40);`);
+		await film();
+	}
+	await film(6);
+	await page(
+		`document.querySelector(".tag-size-history-chart svg").dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));`,
+	);
+	await film(4);
+	for (const action of [`box("#film").click();`, `box("#garden").click();`, `box("#project").click();`]) {
+		await page(action);
+		await film(12);
+	}
+	await page(`document.querySelector(".tag-size-history-reset").click();`);
+	await film(14);
+	await page(`document.querySelector(".tag-size-history-nested input").click();`);
+	await film(28);
+	cut("demo.gif");
+
+	await page(`await defaults(); app.changeTheme("moonstone"); await openChart(); await hover(0.55, 0.5);`);
+	await cdp.shot(join(images, "chart-light.png"), clip);
+	await page(`app.changeTheme("obsidian"); await closeAll();`);
+	console.log("Recorded docs/images/grow.gif and docs/images/demo.gif");
+}
+
 async function main() {
 	execFileSync("npm", ["run", "build"], { cwd: ROOT, stdio: "ignore" });
 	rmSync(OUT, { recursive: true, force: true });
@@ -283,6 +389,15 @@ async function main() {
 			return Boolean(app.plugins.plugins["${ID}"]);
 		})()`);
 		if (!enabled) throw new Error("The plugin did not switch on in the throwaway Obsidian.");
+		// Keep the real mouse pointer out of the recording: the window shrinks and moves to the corner
+		// of the screen farthest from the pointer. The page keeps its emulated size.
+		await cdp.run(`(() => { const { screen, getCurrentWindow } = window.electron.remote; const win = getCurrentWindow();
+			const p = screen.getCursorScreenPoint(); const d = screen.getDisplayNearestPoint(p).workArea;
+			win.setFullScreen(false); win.unmaximize(); win.setMinimumSize(300, 200); win.setSize(420, 300);
+			win.setPosition(p.x < d.x + d.width / 2 ? d.x + d.width - 430 : d.x + 10, p.y < d.y + d.height / 2 ? d.y + d.height - 310 : d.y + 10);
+			return win.getBounds(); })()`);
+		await sleep(500);
+		await cdp.emulate();
 		for (const check of CHECKS) {
 			const { clip, ...result } = await cdp.run(`(async () => { ${PRELUDE}\n${check.script} })()`);
 			await cdp.shot(join(OUT, `${check.name}.png`));
@@ -291,6 +406,7 @@ async function main() {
 			if (!ok) failed++;
 			console.log(`${ok ? "ok  " : "FAIL"} ${check.name} ${JSON.stringify(result)}`);
 		}
+		if (README) await recordDemo(cdp);
 		cdp.close();
 	} finally {
 		const exited = new Promise((r) => app.once("exit", r));

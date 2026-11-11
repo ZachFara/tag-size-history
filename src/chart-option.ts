@@ -21,6 +21,8 @@ interface LineSeries {
 export interface ChartOption {
 	[key: string]: unknown;
 	backgroundColor: "transparent";
+	/** How long the lines take to draw in, in milliseconds. */
+	animationDuration: number;
 	textStyle: TextStyle;
 	title: { text: string; left: number; top: number; textStyle: TextStyle };
 	legend: { type: "scroll"; top: number; left: number; right: number; data: string[]; textStyle: TextStyle };
@@ -75,6 +77,7 @@ export function buildChartOption(data: ChartData, theme: ChartTheme): ChartOptio
 	const muted = colour(theme.muted);
 	return {
 		backgroundColor: "transparent",
+		animationDuration: 1400,
 		textStyle: { ...text, ...(theme.font === "" ? {} : { fontFamily: theme.font }) },
 		title: { text: CHART_TITLE, left: 8, top: 4, textStyle: { ...text, fontSize: 16, fontWeight: 600 } },
 		legend: {

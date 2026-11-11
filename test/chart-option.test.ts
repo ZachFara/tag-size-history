@@ -50,6 +50,7 @@ test("the axes are dates against counts from zero, and the tooltip covers every 
 	assert.equal(option.yAxis.minInterval, 1);
 	assert.equal(option.tooltip.trigger, "axis");
 	assert.equal(option.title.text, "Tag size history");
+	assert.ok(option.animationDuration > 1000, "the lines take over a second to draw in");
 });
 
 test("theme colours are applied, and missing ones leave the chart's defaults", () => {
