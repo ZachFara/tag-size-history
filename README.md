@@ -24,6 +24,8 @@ Click the chart icon in the ribbon, or run **Tag Size History: Open chart** from
 | Number of tags | How many of the largest tags the chart shows. | 10 |
 | Group nested tags | Count nested tags toward their top-level tag only. | On |
 
+The plugin works offline. It reads only the notes in your vault, sends nothing anywhere, and saves only its own settings.
+
 ## How the history is worked out
 
 The plugin does not record anything over time. Each time you open the chart, it reads every note's tags and date, and counts a note toward its tags from that date onward. So the full history is there the first time you open it.
@@ -39,7 +41,7 @@ If file creation times in your vault are wrong, for example after copying the va
 
 Needs Obsidian 1.13 or later.
 
-The plugin is not in the community list. To install it by hand, build it and copy it into a vault:
+To install it by hand, build it and copy it into a vault:
 
 ```bash
 npm install
@@ -61,6 +63,8 @@ make obsidian-check   # run the plugin in a real, throwaway Obsidian
 ## Credit
 
 Tag Size History takes its idea and the look of its chart from [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by [Technerium](https://technerium.com), which graphs the number of files in a vault over time. This plugin does the same for tags. It shares no code with Vault Size History.
+
+The chart is drawn with [Apache ECharts](https://echarts.apache.org), which is bundled into the plugin under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 ## Licence
 

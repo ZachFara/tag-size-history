@@ -74,6 +74,8 @@ make readme-images                 # the same, and refresh the pictures in docs/
 
 To release, bump the version with `npm version <x.y.z>` (it updates `manifest.json` and `versions.json`), merge that through a PR, then push a tag equal to the version, with no `v`. The `release` workflow runs `make check`, confirms the tag matches the manifest, and makes a **draft** GitHub release with `main.js`, `manifest.json` and `styles.css`. Publish the draft by hand. Tagging is publishing, so only do it when the owner asks.
 
+Obsidian's community directory takes submissions at https://community.obsidian.md (Your plugins, New plugin), not by pull request. It reads `manifest.json` from the head of `main` and installs from the release whose tag equals the manifest version. The form asks the owner to agree to the Developer Policies and to commit to maintaining the plugin, so the owner submits it, not an agent.
+
 ## Decision records
 
 `docs/decisions/NNNN-title.md`, each with Context, Decision, Consequences. Add one for any language, framework, tooling, or architecture choice. The records are the source of truth for how.
