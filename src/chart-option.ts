@@ -8,11 +8,14 @@ interface TextStyle {
 }
 
 interface LineSeries {
+	/** Lets the chart tell which line is which between redraws, so only lines that changed move. */
+	id: string;
 	name: string;
 	type: "line";
 	showSymbol: boolean;
 	symbolSize: number;
 	lineStyle: { width: number };
+	itemStyle: { color: string };
 	/** `[start of day, note count]` */
 	data: [number, number][];
 }
@@ -53,6 +56,25 @@ export interface ChartOption {
 	series: LineSeries[];
 }
 
+/** Line colours that read on dark and light backgrounds. Lines past the last colour start again. */
+const PALETTE = [
+	"#5b7cf0",
+	"#b6d634",
+	"#ff994d",
+	"#0ca8df",
+	"#ffd10a",
+	"#fb628b",
+	"#9a7fe0",
+	"#3fbe95",
+	"#e0745c",
+	"#8fa3b8",
+];
+
+/** A line's colour comes from its rank, not its place among the shown lines, so it never changes. */
+export function lineColour(rank: number): string {
+	return PALETTE[rank % PALETTE.length] ?? "#5b7cf0";
+}
+
 /** Leaves a key out when the theme has no value for it, so ECharts keeps its default. */
 function colour(value: string): { color?: string } {
 	return value === "" ? {} : { color: value };
@@ -60,11 +82,13 @@ function colour(value: string): { color?: string } {
 
 function series(data: ChartData): LineSeries[] {
 	return data.lines.map((line) => ({
+		id: line.name,
 		name: line.name,
 		type: "line",
 		showSymbol: false,
 		symbolSize: 6,
 		lineStyle: { width: 2 },
+		itemStyle: { color: lineColour(line.rank) },
 		data: data.days.map((day, i): [number, number] => [day, line.counts[i] ?? 0]),
 	}));
 }

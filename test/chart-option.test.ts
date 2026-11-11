@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildChartOption } from "../src/chart-option.ts";
+import { buildChartOption, lineColour } from "../src/chart-option.ts";
 import type { ChartData, ChartTheme } from "../src/types.ts";
 
 const NO_THEME: ChartTheme = { text: "", muted: "", border: "", background: "", font: "" };
 const DATA: ChartData = {
 	days: [100, 200, 300],
 	lines: [
-		{ name: "#book", counts: [1, 2, 5] },
-		{ name: "#film", counts: [0, 1, 1] },
+		{ name: "#book", rank: 0, counts: [1, 2, 5] },
+		{ name: "#film", rank: 3, counts: [0, 1, 1] },
 	],
 };
 
@@ -67,4 +67,23 @@ test("theme colours are applied, and missing ones leave the chart's defaults", (
 	const plain = buildChartOption(DATA, NO_THEME, "Tag size history");
 	assert.deepEqual(plain.textStyle, {});
 	assert.equal("backgroundColor" in plain.tooltip, false);
+});
+
+test("a line's colour comes from its rank, so it does not change when other lines come and go", () => {
+	const colours = buildChartOption(DATA, NO_THEME, "Any title").series.map((s) => s.itemStyle.color);
+	assert.deepEqual(colours, [lineColour(0), lineColour(3)]);
+	assert.deepEqual(
+		buildChartOption(DATA, NO_THEME, "Any title").series.map((s) => s.id),
+		["#book", "#film"],
+		"each line has an id, so the chart can match it between redraws",
+	);
+	assert.notEqual(lineColour(0), lineColour(3));
+
+	const alone: ChartData = { days: DATA.days, lines: DATA.lines.slice(1) };
+	assert.equal(buildChartOption(alone, NO_THEME, "Any title").series[0]?.itemStyle.color, lineColour(3));
+});
+
+test("colours repeat after the last one rather than running out", () => {
+	assert.equal(lineColour(10), lineColour(0));
+	assert.match(lineColour(57), /^#[0-9a-f]{6}$/);
 });

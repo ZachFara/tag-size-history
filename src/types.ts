@@ -63,7 +63,8 @@ export interface History {
 export interface ChartData {
 	/** Start of each day that has a point, oldest first. */
 	days: number[];
-	lines: { name: string; counts: number[] }[];
+	/** `rank` is the line's place among all lines, largest first. It picks the colour, so a line keeps its colour when others are switched on or off. */
+	lines: { name: string; rank: number; counts: number[] }[];
 }
 
 /** Colours and font taken from the Obsidian theme. An empty string leaves the chart's default. */

@@ -99,18 +99,19 @@ test("untagged notes add nothing", () => {
 
 test("chart data puts every line on the same days, ending today", () => {
 	const histories = tagHistories([note(march(1), "#a"), note(march(3), "#b"), note(march(5), "#a")]);
-	const data = chartData(histories, march(9));
+	const data = chartData(histories, histories, march(9));
 	assert.deepEqual(data.days, [day(1), day(3), day(5), day(9)]);
 	assert.deepEqual(data.lines, [
-		{ name: "a", counts: [1, 1, 2, 2] },
-		{ name: "b", counts: [0, 1, 1, 1] },
+		{ name: "a", rank: 0, counts: [1, 1, 2, 2] },
+		{ name: "b", rank: 1, counts: [0, 1, 1, 1] },
 	]);
 });
 
 test("chart data does not repeat today when a note was created today", () => {
-	const data = chartData(tagHistories([note(march(9, 8), "#a")]), march(9, 20));
+	const one = tagHistories([note(march(9, 8), "#a")]);
+	const data = chartData(one, one, march(9, 20));
 	assert.deepEqual(data.days, [day(9)]);
-	assert.deepEqual(data.lines, [{ name: "a", counts: [1] }]);
+	assert.deepEqual(data.lines, [{ name: "a", rank: 0, counts: [1] }]);
 });
 
 test("the date source picks which date a note counts from", () => {
@@ -282,4 +283,15 @@ test("links follow the date source", () => {
 
 test("a vault with no links has no link lines", () => {
 	assert.deepEqual(linkHistories([linking("a.md", march(1))], "created"), []);
+});
+
+test("a line keeps its rank when the lines above it are not shown", () => {
+	const shown = RANKED.filter((h) => h.name !== "a");
+	assert.deepEqual(
+		chartData(shown, RANKED, march(9)).lines.map((line) => [line.name, line.rank]),
+		[
+			["b", 1],
+			["c", 2],
+		],
+	);
 });

@@ -208,7 +208,8 @@ const hover = async (fx, fy) => { const svg = document.querySelector(".tag-size-
 const hoverNow = (fx) => { const svg = document.querySelector(".tag-size-history-chart svg"); const r = svg.getBoundingClientRect();
   svg.dispatchEvent(new MouseEvent("mousemove", { clientX: r.x + r.width * fx, clientY: r.y + r.height * 0.5, bubbles: true })); };
 const defaults = async () => { const tab = app.setting.pluginTabs.find((t) => t.id === "${ID}");
-  await tab.setControlValue("dateSource", "created"); await tab.setControlValue("groupNested", true); await tab.setControlValue("mode", "tags"); };
+  await tab.setControlValue("dateSource", "created"); await tab.setControlValue("groupNested", true); await tab.setControlValue("mode", "tags");
+  for (const key of ["shownTags", "hiddenTags", "shownNotes", "hiddenNotes"]) await tab.setControlValue(key, []); };
 const modeButton = (text) => all(".tag-size-history-modes button").find((b) => b.textContent === text);`;
 
 const CHECKS = [
@@ -269,6 +270,16 @@ return { ...after, reset: lines().length, saved: (await plugin.loadData()).hidde
 			r.saved === 0,
 	},
 	{
+		// Switching a tag off removes its colour and leaves every other line's colour alone.
+		name: "colours",
+		script: `await openChart(); await sleep(800);
+const strokes = () => [...new Set(all(".tag-size-history-chart svg path").map((p) => p.getAttribute("stroke")).filter((c) => c && c !== "none"))].sort();
+const before = strokes(); box("#project").click(); await sleep(2000); const after = strokes();
+document.querySelector(".tag-size-history-reset").click(); await sleep(300);
+return { gone: before.filter((c) => !after.includes(c)), added: after.filter((c) => !before.includes(c)) };`,
+		expect: (r) => r.gone.join() === "#5b7cf0" && r.added.length === 0,
+	},
+	{
 		name: "nested",
 		readme: "nested",
 		script: `await openChart(); document.querySelector(".tag-size-history-nested input").click(); await sleep(1800); // new lines draw in over a second
@@ -283,7 +294,6 @@ return result;`,
 	{
 		// Links mode: one line per linked note, counting the notes that link to it.
 		name: "links",
-		readme: "links",
 		script: `await openChart(); modeButton("Links").click(); await sleep(2000);
 const result = { title: chartText().includes("Backlink history"), rows: rows(), lines: chartText().filter((t) => rows().some((r) => r.tag === t)),
   nested: all(".tag-size-history-nested").length, saved: plugin.settings.mode, clip: clipOf(".modal.tag-size-history-modal") };
@@ -346,16 +356,37 @@ function gif(frames, target, clip, fps) {
 	);
 }
 
+// A pointer drawn on the page for the recordings, so the viewer sees what is about to be pressed.
+// `point` glides it to a place, `pointAt` to the middle of an element, and `press` clicks with a dip.
+const POINTER = `const pointer = () => { let p = document.getElementById("tsh-demo-pointer");
+  if (!p) { p = document.body.appendChild(document.createElement("div")); p.id = "tsh-demo-pointer";
+    p.style.cssText = "position:fixed;left:0;top:0;z-index:99999;pointer-events:none;width:22px;height:22px;";
+    const NS = "http://www.w3.org/2000/svg"; const svg = p.appendChild(document.createElementNS(NS, "svg"));
+    svg.setAttribute("viewBox", "0 0 22 22"); svg.setAttribute("width", "22"); svg.setAttribute("height", "22");
+    const arrow = svg.appendChild(document.createElementNS(NS, "path")); arrow.setAttribute("d", "M3 2 L3 18 L7.5 14 L10.5 20.5 L13 19.4 L10 13 L16 13 Z");
+    arrow.setAttribute("fill", "#fff"); arrow.setAttribute("stroke", "#111"); arrow.setAttribute("stroke-width", "1.3"); arrow.setAttribute("stroke-linejoin", "round"); }
+  return p; };
+const point = (x, y, ms = 600) => { const p = pointer(); p.style.transition = "transform " + ms + "ms ease-in-out"; p.style.transform = "translate(" + (x - 3) + "px, " + (y - 2) + "px)"; };
+const pointAt = (el, ms) => { const r = el.getBoundingClientRect(); point(r.x + Math.min(r.width / 2, 60), r.y + r.height / 2, ms); };
+const press = async (el) => { const p = pointer(); const at = p.style.transform; p.style.transition = "transform 90ms"; p.style.transform = at + " scale(0.8)";
+  await sleep(110); el.click(); p.style.transform = at; };
+const sweepTo = (fx) => { const r = document.querySelector(".tag-size-history-chart svg").getBoundingClientRect(); point(r.x + r.width * fx, r.y + r.height * 0.5, 0); hoverNow(fx); };
+const leaveChart = () => document.querySelector(".tag-size-history-chart svg").dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));`;
+
 /**
  * Records the README's moving pictures and a still in the light theme. Frames are pictures of the
  * whole page, taken as fast as Obsidian gives them, and ffmpeg crops and joins them. A clipped
  * picture would be smaller, but taking one briefly changes the page's size, which redraws the chart.
+ *
+ * Each picture shows one thing at a time: the pointer glides to a control, presses it, and the
+ * recording holds until the chart has finished redrawing and a little longer, before the next step.
  *   grow.gif: the pop-up opens and the lines draw in.
- *   demo.gif: the tooltip sweeps across, tags are switched, and nested tags are ungrouped.
+ *   demo.gif: the tooltip sweeps across the dates, then a tag is switched on, one off, and reset.
+ *   links.gif: the switch to links mode, then one note switched off.
  */
 async function recordDemo(cdp) {
 	const images = join(ROOT, "docs", "images");
-	const page = (script) => cdp.run(`(async () => { ${PRELUDE}\n${script} })()`);
+	const page = (script) => cdp.run(`(async () => { ${PRELUDE}\n${POINTER}\n${script} })()`);
 	let frames;
 	let count = 0;
 	let clip;
@@ -366,11 +397,22 @@ async function recordDemo(cdp) {
 		count = 0;
 		started = Date.now();
 	};
-	const film = async (n = 1) => {
-		for (let i = 0; i < n; i++) await cdp.frame(join(frames, `f${String(count++).padStart(3, "0")}.jpg`));
+	/** Films for this long. */
+	const hold = async (ms) => {
+		const end = Date.now() + ms;
+		while (Date.now() < end) await cdp.frame(join(frames, `f${String(count++).padStart(3, "0")}.jpg`));
 	};
 	const cut = (name) => {
 		gif(frames, join(images, name), clip, (count * 1000) / (Date.now() - started));
+	};
+	/** The lines take 1.4 seconds to redraw. Hold through that and a pause, so steps never overlap. */
+	const SETTLE = 2600;
+	/** Glides the pointer to what `target` finds, presses it, and holds until the chart has settled. */
+	const pressAndSettle = async (target, settle = SETTLE) => {
+		await page(`pointAt(${target});`);
+		await hold(900);
+		await page(`await press(${target});`);
+		await hold(settle);
 	};
 
 	// Open once to learn where things sit, then again to film the lines drawing in from the start.
@@ -378,33 +420,36 @@ async function recordDemo(cdp) {
 
 	reel("grow");
 	await page(`await closeAll(); app.commands.executeCommandById("${ID}:open");`);
-	await film(24);
+	await hold(3200);
 	cut("grow.gif");
 
+	// The chart is fully drawn by now. Sweep the tooltip across, then let it go before pressing anything.
 	reel("demo");
-	for (let i = 0; i <= 40; i++) {
-		await page(`hoverNow(${String(0.1 + (0.8 * i) / 40)}); await sleep(40);`);
-		await film();
+	await page(`sweepTo(0.1);`);
+	await hold(500);
+	for (let i = 0; i <= 44; i++) {
+		await page(`sweepTo(${String(0.1 + (0.8 * i) / 44)}); await sleep(30);`);
+		await hold(1);
 	}
-	await film(6);
-	await page(
-		`document.querySelector(".tag-size-history-chart svg").dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));`,
-	);
-	await film(4);
-	for (const action of [`box("#film").click();`, `box("#garden").click();`, `box("#project").click();`]) {
-		await page(action);
-		await film(12);
-	}
-	await page(`document.querySelector(".tag-size-history-reset").click();`);
-	await film(14);
-	await page(`document.querySelector(".tag-size-history-nested input").click();`);
-	await film(28);
+	await hold(900);
+	await page(`leaveChart(); pointAt(box("#film"), 700);`);
+	await hold(1100);
+	await page(`await press(box("#film"));`);
+	await hold(SETTLE);
+	await pressAndSettle(`box("#project")`);
+	await pressAndSettle(`document.querySelector(".tag-size-history-reset")`);
 	cut("demo.gif");
+
+	reel("links");
+	await pressAndSettle(`modeButton("Links")`, 3200);
+	await pressAndSettle(`box("Home")`);
+	cut("links.gif");
+	await page(`document.getElementById("tsh-demo-pointer")?.remove();`);
 
 	await page(`await defaults(); app.changeTheme("moonstone"); await openChart(); await hover(0.55, 0.5);`);
 	await cdp.shot(join(images, "chart-light.png"), clip);
 	await page(`app.changeTheme("obsidian"); await closeAll();`);
-	console.log("Recorded docs/images/grow.gif and docs/images/demo.gif");
+	console.log("Recorded grow.gif, demo.gif and links.gif in docs/images/");
 }
 
 async function main() {
