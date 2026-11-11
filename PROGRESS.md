@@ -30,7 +30,7 @@ None.
 
 ## Next steps
 
-Nothing is queued. To publish, the owner asks for a tag (see Releasing in AGENTS.md).
+The owner asked for the plugin to be posted to the Obsidian community directory. Tag 0.1.0 is pushed and its release is a draft. What remains is for the owner to publish the draft and submit the repo at https://community.obsidian.md/account/plugins/new, which asks them to agree to the Developer Policies and to commit to maintaining the plugin.
 
 ## Learned
 
