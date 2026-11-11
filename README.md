@@ -10,10 +10,10 @@ Click the chart icon in the ribbon, or run **Tag Size History: Open chart** from
 
 - The chart starts with your ten largest tags.
 - Hover to see every tag's note count on that date.
-- Use the panel on the right to switch any tag on or off. Type in the box to filter the list. Your choices are remembered. **Reset** goes back to the largest tags.
+- Use the panel on the right to switch any tag on or off. Each tag keeps its colour while others come and go. Type in the box to filter the list. Your choices are remembered. **Reset** goes back to the largest tags.
 - **Group nested tags** decides how `#project/alpha` is counted. On, it counts toward `#project` only. Off, it also gets a line of its own.
 
-![A tooltip sweeps across the dates, tags are switched on and off, and nested tags are split into their own lines](docs/images/demo.gif)
+![A tooltip sweeps across the dates, then one tag is switched on, another off, and Reset brings back the largest](docs/images/demo.gif)
 
 ![The pop-up in the dark theme, with a tooltip listing each tag's note count on the hovered date](docs/images/chart.png)
 
@@ -25,7 +25,7 @@ The chart follows your theme, light or dark.
 
 Press **Links** in the panel to chart links instead of tags. Each line is one of your notes, and it shows how many notes link to it over time, so you can see which notes grew into hubs and when. The largest are shown first, and you can switch any note on or off as with tags.
 
-![Links mode: one line per note, counting the notes that link to it](docs/images/links.png)
+![Pressing Links swaps the chart to one line per note, counting the notes that link to it; switching a note off removes its line](docs/images/links.gif)
 
 A linking note counts once, from its own date, however many links it has to the same note.
 

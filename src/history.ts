@@ -171,10 +171,17 @@ function countsOn(history: History, days: number[]): number[] {
 	});
 }
 
-/** Puts the given lines on one shared list of days, ending today, so every line has a point on every day. */
-export function chartData(histories: History[], now: number): ChartData {
-	const all = new Set<number>([startOfDay(now)]);
-	for (const history of histories) for (const [day] of history.days) all.add(day);
-	const days = [...all].sort((a, b) => a - b);
-	return { days, lines: histories.map((h) => ({ name: h.name, counts: countsOn(h, days) })) };
+/**
+ * Puts the `shown` lines on one shared list of days, ending today, so every line has a point on every day.
+ * `all` is every line, largest first; a line's place in it is its rank.
+ */
+export function chartData(shown: History[], all: History[], now: number): ChartData {
+	const days = new Set<number>([startOfDay(now)]);
+	for (const history of shown) for (const [day] of history.days) days.add(day);
+	const sorted = [...days].sort((a, b) => a - b);
+	const ranks = new Map(all.map((history, rank) => [history.key, rank]));
+	return {
+		days: sorted,
+		lines: shown.map((h) => ({ name: h.name, rank: ranks.get(h.key) ?? 0, counts: countsOn(h, sorted) })),
+	};
 }

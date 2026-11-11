@@ -99,7 +99,7 @@ export class TagHistoryModal extends Modal {
 	private chartOption(chartEl: HTMLElement): ChartOption {
 		const shown = shownHistories(this.histories, choicesOf(this.settings));
 		return buildChartOption(
-			chartData(shown, Date.now()),
+			chartData(shown, this.histories, Date.now()),
 			readTheme(chartEl),
 			MODES[this.settings.mode].title,
 		);

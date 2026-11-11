@@ -36,7 +36,8 @@ export function drawChart(el: HTMLElement, option: ChartOption): Chart {
 	return {
 		set: (next) => {
 			current = next;
-			chart?.setOption(next, true);
+			// Everything is replaced except that lines are matched by id, so a line that stays does not jump.
+			chart?.setOption(next, { replaceMerge: ["series"] });
 		},
 		remove: () => {
 			observer.disconnect();
