@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildChartOption, lineColour } from "../src/chart-option.ts";
+import { buildChartOption, lineColour, shortName } from "../src/chart-option.ts";
 import type { ChartData, ChartTheme } from "../src/types.ts";
 
 const NO_THEME: ChartTheme = { text: "", muted: "", border: "", background: "", font: "" };
@@ -86,4 +86,12 @@ test("a line's colour comes from its rank, so it does not change when other line
 test("colours repeat after the last one rather than running out", () => {
 	assert.equal(lineColour(10), lineColour(0));
 	assert.match(lineColour(57), /^#[0-9a-f]{6}$/);
+});
+
+test("the legend shortens a long name and leaves a short one alone", () => {
+	const long = "A note with a very long name that goes on and on";
+	assert.equal(shortName("#book"), "#book");
+	assert.equal(shortName(long), "A note with a very long nam…");
+	assert.equal(shortName(long).length, 28);
+	assert.equal(buildChartOption(DATA, NO_THEME, "Any title").legend.formatter(long), shortName(long));
 });

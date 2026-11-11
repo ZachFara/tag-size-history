@@ -312,3 +312,14 @@ test("links mode in a vault with no links shows a message, and tags mode still w
 	assert.match(chartText(modal), /#x/);
 	modal.close();
 });
+
+test("a row carries the full name for hovering, since a long one is cut short", () => {
+	const long = "A note with a very long name that goes on and on.md";
+	const modal = open([{ path: "a.md", tags: [], links: [long], created: at(1) }], {
+		...DEFAULT_SETTINGS,
+		mode: "links",
+	});
+	const row = modal.contentEl.querySelector(".tag-size-history-tag");
+	assert.equal(row?.getAttribute("title"), "A note with a very long name that goes on and on");
+	modal.close();
+});

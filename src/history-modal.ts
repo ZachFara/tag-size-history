@@ -173,6 +173,8 @@ export class TagHistoryModal extends Modal {
 		for (const { key, name, total } of this.histories) {
 			if (!name.toLowerCase().includes(this.filter)) continue;
 			const row = list.createEl("label", { cls: "tag-size-history-tag" });
+			// The row cuts a long name short. Hovering shows all of it.
+			row.setAttribute("title", name);
 			const box = row.createEl("input", { type: "checkbox" });
 			box.checked = shown.has(key);
 			box.addEventListener("change", () => {
