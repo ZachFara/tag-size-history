@@ -50,6 +50,9 @@ const SPAN = 730 * DAY;
 const HUBS = ["Reading list", "Projects", "People", "Ideas", "Weekly review"];
 /** How many notes link to each hub, filled in as the notes are written. */
 const LINKED = new Map();
+/** A linked note with a name far wider than the panel. The panel must cut it short, not grow to fit it. */
+const LONG_NAME =
+	"A note with a very long name that goes on and on well past the width of the panel beside the chart";
 
 /** Repeatable pseudo-random numbers, so every run draws the same chart shape. */
 function random(seed) {
@@ -85,7 +88,9 @@ function writeNotes(vault) {
 	}
 	for (const hub of [...HUBS, "Home"]) writeFileSync(join(vault, `${hub}.md`), `The ${hub} note.\n`);
 	writeFileSync(join(vault, "Old book.md"), "---\ncreated: 2019-05-01\ntags: [book]\n---\nAn old one.\n");
-	writeFileSync(join(vault, "Untagged.md"), "No tags here.\n");
+	writeFileSync(join(vault, "Untagged.md"), `No tags here. See [[${LONG_NAME}]].\n`);
+	writeFileSync(join(vault, `${LONG_NAME}.md`), "A note with a long name.\n");
+	LINKED.set(LONG_NAME, 1);
 }
 
 /** A fresh vault with sample notes, and a profile that opens only it. */
@@ -295,8 +300,9 @@ return result;`,
 		// Links mode: one line per linked note, counting the notes that link to it.
 		name: "links",
 		script: `await openChart(); modeButton("Links").click(); await sleep(2000);
-const result = { title: chartText().includes("Backlink history"), rows: rows(), lines: chartText().filter((t) => rows().some((r) => r.tag === t)),
-  nested: all(".tag-size-history-nested").length, saved: plugin.settings.mode, clip: clipOf(".modal.tag-size-history-modal") };
+const result = { title: chartText().includes("Backlink history"), rows: rows(), lines: chartText().filter((t) => rows().some((r) => r.tag === t || (t.endsWith("…") && r.tag.startsWith(t.slice(0, -1))))),
+  nested: all(".tag-size-history-nested").length, saved: plugin.settings.mode,
+  panel: clipOf(".tag-size-history-panel").width, chart: clipOf(".tag-size-history-chart").width, clip: clipOf(".modal.tag-size-history-modal") };
 await sleep(100); return result;`,
 		expect: (r) => {
 			const expected = [...LINKED.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -306,7 +312,10 @@ await sleep(100); return result;`,
 					expected.map(([n, c]) => `${n}=${String(c)}`).join() &&
 				r.lines.length === expected.length &&
 				r.nested === 0 &&
-				r.saved === "links"
+				r.saved === "links" &&
+				// A long note name must not widen the panel and squeeze the chart.
+				r.panel === 220 &&
+				r.chart > 600
 			);
 		},
 	},

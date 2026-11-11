@@ -28,7 +28,16 @@ export interface ChartOption {
 	animationDuration: number;
 	textStyle: TextStyle;
 	title: { text: string; left: number; top: number; textStyle: TextStyle };
-	legend: { type: "scroll"; top: number; left: number; right: number; data: string[]; textStyle: TextStyle };
+	legend: {
+		type: "scroll";
+		top: number;
+		left: number;
+		right: number;
+		data: string[];
+		textStyle: TextStyle;
+		/** Shortens a long name, so one long note name does not push the others off the legend. */
+		formatter: (name: string) => string;
+	};
 	tooltip: {
 		trigger: "axis";
 		order: "valueDesc";
@@ -75,6 +84,13 @@ export function lineColour(rank: number): string {
 	return PALETTE[rank % PALETTE.length] ?? "#5b7cf0";
 }
 
+const LONGEST_LEGEND_NAME = 28;
+
+/** A name short enough for the legend. The tooltip and the panel still show it in full or on hover. */
+export function shortName(name: string): string {
+	return name.length > LONGEST_LEGEND_NAME ? `${name.slice(0, LONGEST_LEGEND_NAME - 1)}…` : name;
+}
+
 /** Leaves a key out when the theme has no value for it, so ECharts keeps its default. */
 function colour(value: string): { color?: string } {
 	return value === "" ? {} : { color: value };
@@ -109,6 +125,7 @@ export function buildChartOption(data: ChartData, theme: ChartTheme, title: stri
 			right: 16,
 			data: data.lines.map((line) => line.name),
 			textStyle: text,
+			formatter: shortName,
 		},
 		tooltip: {
 			trigger: "axis",

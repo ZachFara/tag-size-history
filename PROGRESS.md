@@ -2,7 +2,7 @@
 
 ## Status
 
-The first build of MIT-655 is complete: T1 to T6 are done and version 0.2.0 is on `main`. The owner waived the approval stops for that build only; later sessions follow the rules as written, including stopping for approval.
+The first build of MIT-655 is complete: T1 to T6 are done and version 0.2.1 is on `main`. The owner waived the approval stops for that build only; later sessions follow the rules as written, including stopping for approval.
 
 ## Tasks
 
@@ -45,3 +45,4 @@ Nothing is queued. The plugin is listed at https://community.obsidian.md/plugins
 - The lines never drew in on opening until 0.1.2, because the chart was made before the pop-up had a size. Recording the README's moving pictures is what showed it.
 - Links mode reuses the tag machinery: `history` counts anything a note "counts toward", keyed by lower-case tag or by note path (decision 0010).
 - The first recordings pressed things faster than the chart redrew, and lines changed colour when a tag was switched. 0.2.0 fixes the colours in the plugin and paces the recordings.
+- 0.2.0 broke links mode in the owner's real vault: a long note name widened the panel over the chart. The sample vault had only short names. 0.2.1 fixes it and adds a long-named note to the sample vault.
