@@ -2,7 +2,7 @@
 
 ## Status
 
-The first build of MIT-655 is complete: T1 to T6 are done and version 0.1.0 is on `main`. The owner waived the approval stops for that build only; later sessions follow the rules as written, including stopping for approval.
+The first build of MIT-655 is complete: T1 to T6 are done and version 0.1.1 is on `main`. The owner waived the approval stops for that build only; later sessions follow the rules as written, including stopping for approval.
 
 ## Tasks
 
@@ -30,7 +30,7 @@ None.
 
 ## Next steps
 
-The owner asked for the plugin to be posted to the Obsidian community directory. Tag 0.1.0 is pushed and its release is a draft. What remains is for the owner to publish the draft and submit the repo at https://community.obsidian.md/account/plugins/new, which asks them to agree to the Developer Policies and to commit to maintaining the plugin.
+The owner asked for the plugin to be posted to the Obsidian community directory. Tag 0.1.0 was pushed before the built file carried the ECharts licence notice, so the release to use is 0.1.1. What remains is for the owner to publish the draft and submit the repo at https://community.obsidian.md/account/plugins/new, which asks them to agree to the Developer Policies and to commit to maintaining the plugin.
 
 ## Learned
 
