@@ -51,7 +51,9 @@ If file creation times in your vault are wrong, for example after copying the va
 
 Needs Obsidian 1.13 or later.
 
-To install it by hand, build it and copy it into a vault:
+In Obsidian, open Settings, Community plugins, Browse, search for **Tag Size History**, then install and enable it. Or use its page in the directory: [community.obsidian.md/plugins/tag-size-history](https://community.obsidian.md/plugins/tag-size-history).
+
+To build it yourself and copy it into a vault:
 
 ```bash
 npm install
