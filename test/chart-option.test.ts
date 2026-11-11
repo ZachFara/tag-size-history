@@ -7,13 +7,13 @@ const NO_THEME: ChartTheme = { text: "", muted: "", border: "", background: "", 
 const DATA: ChartData = {
 	days: [100, 200, 300],
 	lines: [
-		{ tag: "book", counts: [1, 2, 5] },
-		{ tag: "film", counts: [0, 1, 1] },
+		{ name: "#book", counts: [1, 2, 5] },
+		{ name: "#film", counts: [0, 1, 1] },
 	],
 };
 
-test("each tag is a line of [day, count] points named with its #", () => {
-	const option = buildChartOption(DATA, NO_THEME);
+test("each line is a series of [day, count] points under its name", () => {
+	const option = buildChartOption(DATA, NO_THEME, "Tag size history");
 	assert.deepEqual(
 		option.series.map((s) => [s.name, s.type, s.data]),
 		[
@@ -40,11 +40,11 @@ test("each tag is a line of [day, count] points named with its #", () => {
 });
 
 test("the legend lists the tags in the order given", () => {
-	assert.deepEqual(buildChartOption(DATA, NO_THEME).legend.data, ["#book", "#film"]);
+	assert.deepEqual(buildChartOption(DATA, NO_THEME, "Tag size history").legend.data, ["#book", "#film"]);
 });
 
 test("the axes are dates against counts from zero, and the tooltip covers every line", () => {
-	const option = buildChartOption(DATA, NO_THEME);
+	const option = buildChartOption(DATA, NO_THEME, "Tag size history");
 	assert.equal(option.xAxis.type, "time");
 	assert.equal(option.yAxis.min, 0);
 	assert.equal(option.yAxis.minInterval, 1);
@@ -54,19 +54,17 @@ test("the axes are dates against counts from zero, and the tooltip covers every 
 });
 
 test("theme colours are applied, and missing ones leave the chart's defaults", () => {
-	const themed = buildChartOption(DATA, {
-		text: "#111",
-		muted: "#777",
-		border: "#ccc",
-		background: "#fff",
-		font: "Inter",
-	});
+	const themed = buildChartOption(
+		DATA,
+		{ text: "#111", muted: "#777", border: "#ccc", background: "#fff", font: "Inter" },
+		"Any title",
+	);
 	assert.deepEqual(themed.textStyle, { color: "#111", fontFamily: "Inter" });
 	assert.equal(themed.xAxis.axisLabel.color, "#777");
 	assert.equal(themed.tooltip.backgroundColor, "#fff");
 	assert.deepEqual(themed.yAxis.splitLine.lineStyle, { color: "#ccc" });
 
-	const plain = buildChartOption(DATA, NO_THEME);
+	const plain = buildChartOption(DATA, NO_THEME, "Tag size history");
 	assert.deepEqual(plain.textStyle, {});
 	assert.equal("backgroundColor" in plain.tooltip, false);
 });

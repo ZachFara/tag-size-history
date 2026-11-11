@@ -34,7 +34,7 @@ function definition(tab: TabClass, name: string): SettingDefinition {
 	return found;
 }
 
-test("the tab offers date source, frontmatter property, number of tags and nested grouping", () => {
+test("the tab offers date source, frontmatter property, number of lines and nested grouping", () => {
 	const { tab } = makeTab();
 	const controls = (tab.getSettingDefinitions() as SettingDefinition[]).map((d) => [
 		d.name,
@@ -44,7 +44,7 @@ test("the tab offers date source, frontmatter property, number of tags and neste
 	assert.deepEqual(controls, [
 		["Date source", "dropdown", "dateSource"],
 		["Frontmatter property", "text", "frontmatterProperty"],
-		["Number of tags", "number", "topTags"],
+		["Number of lines", "number", "topTags"],
 		["Group nested tags", "toggle", "groupNested"],
 	]);
 	const source = definition(tab, "Date source").control;

@@ -4,7 +4,7 @@ Instructions for every agent session on this repo. Read this file, `PROGRESS.md`
 
 ## What this is
 
-Tag Size History is an Obsidian plugin. A pop-up shows a line chart of how many notes carry each tag over time, one line per tag, in the style of the Vault Size History plugin. The history is computed from the vault as it is now: a note counts toward its tags from its date (creation time by default). See `DESIGN.md` for the full design, which is the source of truth for what to build. The ticket is Linear MIT-655.
+Tag Size History is an Obsidian plugin. A pop-up shows a line chart of how many notes carry each tag over time, one line per tag, in the style of the Vault Size History plugin. A second mode charts how many notes link to each note. The history is computed from the vault as it is now: a note counts toward its tags from its date (creation time by default). See `DESIGN.md` for the full design, which is the source of truth for what to build. The ticket is Linear MIT-655.
 
 ## Architecture
 
@@ -12,11 +12,11 @@ Nine modules in `src/`. The arrows are the only allowed imports, and `make check
 
 ```
 types          leaf, imports nothing
-settings       defaults and normalizing of saved settings; imports types
-history        note dates, tag counting, series, ranking, shown tags; imports types
+settings       defaults, normalizing of saved settings, each mode's choices; imports types
+history        note dates, tag and link counting, series, ranking, shown lines; imports types
 chart-option   builds the chart description (a plain object) from series; imports types
 chart          draws a chart description with ECharts; imports echarts, chart-option, types
-vault-notes    reads notes and their tags from the vault; imports obsidian, types
+vault-notes    reads notes with their tags and links from the vault; imports obsidian, types
 history-modal  the pop-up; imports obsidian, chart, chart-option, history, settings, types
 settings-tab   the settings tab; imports obsidian, settings, types
 main           the plugin; the only module that wires the others together

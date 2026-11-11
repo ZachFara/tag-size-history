@@ -46,6 +46,11 @@ const TAGS = [
 ];
 const SPAN = 730 * DAY;
 
+/** Notes that the sample notes link to. Every note of a tag links to that tag's hub, and some link Home. */
+const HUBS = ["Reading list", "Projects", "People", "Ideas", "Weekly review"];
+/** How many notes link to each hub, filled in as the notes are written. */
+const LINKED = new Map();
+
 /** Repeatable pseudo-random numbers, so every run draws the same chart shape. */
 function random(seed) {
 	let state = seed;
@@ -62,16 +67,23 @@ function random(seed) {
  */
 function writeNotes(vault) {
 	const next = random(7);
+	const coin = random(11);
 	const start = Date.now() - SPAN;
 	let count = 0;
-	for (const { tag, notes, from, to } of TAGS) {
+	for (const [index, { tag, notes, from, to }] of TAGS.entries()) {
 		for (let i = 0; i < notes; i++) {
 			const when = new Date(start + (from + (to - from) * next()) * SPAN);
 			const path = join(vault, `Note ${String(++count).padStart(3, "0")}.md`);
-			writeFileSync(path, `A sample note.\n\n#${tag}\n`);
+			const hubs = [HUBS[index % HUBS.length], ...(coin() < 0.3 ? ["Home"] : [])];
+			for (const hub of hubs) LINKED.set(hub, (LINKED.get(hub) ?? 0) + 1);
+			writeFileSync(
+				path,
+				`A sample note. See ${hubs.map((hub) => `[[${hub}]]`).join(" and ")}.\n\n#${tag}\n`,
+			);
 			utimesSync(path, when, when);
 		}
 	}
+	for (const hub of [...HUBS, "Home"]) writeFileSync(join(vault, `${hub}.md`), `The ${hub} note.\n`);
 	writeFileSync(join(vault, "Old book.md"), "---\ncreated: 2019-05-01\ntags: [book]\n---\nAn old one.\n");
 	writeFileSync(join(vault, "Untagged.md"), "No tags here.\n");
 }
@@ -196,7 +208,8 @@ const hover = async (fx, fy) => { const svg = document.querySelector(".tag-size-
 const hoverNow = (fx) => { const svg = document.querySelector(".tag-size-history-chart svg"); const r = svg.getBoundingClientRect();
   svg.dispatchEvent(new MouseEvent("mousemove", { clientX: r.x + r.width * fx, clientY: r.y + r.height * 0.5, bubbles: true })); };
 const defaults = async () => { const tab = app.setting.pluginTabs.find((t) => t.id === "${ID}");
-  await tab.setControlValue("dateSource", "created"); await tab.setControlValue("groupNested", true); };`;
+  await tab.setControlValue("dateSource", "created"); await tab.setControlValue("groupNested", true); await tab.setControlValue("mode", "tags"); };
+const modeButton = (text) => all(".tag-size-history-modes button").find((b) => b.textContent === text);`;
 
 const CHECKS = [
 	{
@@ -268,11 +281,39 @@ return result;`,
 			r.saved === false,
 	},
 	{
+		// Links mode: one line per linked note, counting the notes that link to it.
+		name: "links",
+		readme: "links",
+		script: `await openChart(); modeButton("Links").click(); await sleep(2000);
+const result = { title: chartText().includes("Backlink history"), rows: rows(), lines: chartText().filter((t) => rows().some((r) => r.tag === t)),
+  nested: all(".tag-size-history-nested").length, saved: plugin.settings.mode, clip: clipOf(".modal.tag-size-history-modal") };
+await sleep(100); return result;`,
+		expect: (r) => {
+			const expected = [...LINKED.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+			return (
+				r.title &&
+				r.rows.map((row) => `${row.tag}=${String(row.count)}`).join() ===
+					expected.map(([n, c]) => `${n}=${String(c)}`).join() &&
+				r.lines.length === expected.length &&
+				r.nested === 0 &&
+				r.saved === "links"
+			);
+		},
+	},
+	{
+		// The mode is remembered, and switching back restores the tags.
+		name: "links-remembered",
+		script: `await openChart(); const reopened = modeButton("Links").classList.contains("is-active");
+modeButton("Tags").click(); await sleep(800);
+return { reopened, tags: lines().length, nested: all(".tag-size-history-nested").length, saved: (await plugin.loadData()).mode };`,
+		expect: (r) => r.reopened && r.tags === 10 && r.nested === 1 && r.saved === "tags",
+	},
+	{
 		name: "settings",
 		script: `await openChart(); document.querySelector(".tag-size-history-nested input").click(); await closeAll();
 app.setting.open(); app.setting.openTabById("${ID}"); await sleep(800);
 return { names: settingNames(), open: all(".tag-size-history-modal").length };`,
-		expect: (r) => r.names.join() === "Date source,Number of tags,Group nested tags" && r.open === 0,
+		expect: (r) => r.names.join() === "Date source,Number of lines,Group nested tags" && r.open === 0,
 	},
 	{
 		// The frontmatter source: one note says 2019, so the axis reaches back that far.

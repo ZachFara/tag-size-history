@@ -11,7 +11,7 @@ const { TagHistoryModal } = await loadModule<{ TagHistoryModal: typeof ModalClas
 const APP = {} as App;
 const at = (day: number): number => new Date(2024, 2, day, 12).getTime();
 
-type Tagged = Pick<NoteRecord, "tags" | "created">;
+type Tagged = Pick<NoteRecord, "tags" | "created"> & Partial<Pick<NoteRecord, "path" | "links">>;
 
 /** What the pop-up saved, oldest first. */
 const saved: Settings[] = [];
@@ -21,7 +21,13 @@ const save = (settings: Settings): Promise<void> => {
 };
 
 function open(tagged: Tagged[], settings: Settings = DEFAULT_SETTINGS): ModalClass {
-	const notes = tagged.map((n) => ({ ...n, modified: n.created, frontmatterDate: undefined }));
+	const notes = tagged.map((n, i) => ({
+		path: `note${String(i)}.md`,
+		links: [],
+		...n,
+		modified: n.created,
+		frontmatterDate: undefined,
+	}));
 	const modal = new TagHistoryModal(APP, notes, settings, save);
 	modal.open();
 	return modal;
@@ -72,17 +78,25 @@ test("the number of tags setting limits the lines", () => {
 });
 
 test("the date source setting moves the start of the line", () => {
-	const notes = [{ tags: ["#a"], created: at(1), modified: at(1), frontmatterDate: "2021-06-01" }];
+	const notes = [
+		{ path: "a.md", links: [], tags: ["#a"], created: at(1), modified: at(1), frontmatterDate: "2021-06-01" },
+	];
 	const modal = new TagHistoryModal(APP, notes, { ...DEFAULT_SETTINGS, dateSource: "frontmatter" }, save);
 	modal.open();
 	assert.match(chartText(modal), /2021|2022|2023/);
 	modal.close();
 });
 
-test("a vault with no tagged notes gets a message, not an empty chart", () => {
+test("a vault with no tagged notes gets a message in place of the chart", () => {
 	const modal = open([{ tags: [], created: at(1) }]);
-	assert.equal(modal.contentEl.querySelector("svg"), null);
-	assert.match(modal.contentEl.textContent, /No tagged notes yet/);
+	const hidden = (selector: string): boolean | undefined =>
+		modal.contentEl.querySelector(selector)?.classList.contains("tag-size-history-hidden");
+	assert.equal(hidden(".tag-size-history-chart"), true);
+	assert.equal(hidden(".tag-size-history-empty"), false);
+	assert.match(
+		modal.contentEl.querySelector(".tag-size-history-empty")?.textContent ?? "",
+		/No tagged notes yet/,
+	);
 	modal.close();
 });
 
@@ -133,7 +147,7 @@ test("checking a tag outside the largest adds its line and saves the choice", ()
 	assert.doesNotMatch(chartText(modal), /#small/);
 	checkbox(modal, "#small").click();
 	assert.match(chartText(modal), /#small/);
-	assert.deepEqual(saved.at(-1), { ...TOP_TWO, shownTags: ["small"], hiddenTags: [] });
+	assert.deepEqual(saved.at(-1), { ...TOP_TWO, shownTags: ["small"] });
 	assert.equal(checkbox(modal, "#small").checked, true);
 	modal.close();
 });
@@ -143,7 +157,7 @@ test("unchecking one of the largest tags removes its line and saves the choice",
 	checkbox(modal, "#big").click();
 	assert.doesNotMatch(chartText(modal), /#big/);
 	assert.match(chartText(modal), /#mid/);
-	assert.deepEqual(saved.at(-1), { ...TOP_TWO, shownTags: [], hiddenTags: ["big"] });
+	assert.deepEqual(saved.at(-1), { ...TOP_TWO, hiddenTags: ["big"] });
 	modal.close();
 });
 
@@ -224,5 +238,77 @@ test("the pop-up opens ungrouped when that was saved", () => {
 		modal.contentEl.querySelector<HTMLInputElement>(".tag-size-history-nested input")?.checked,
 		false,
 	);
+	modal.close();
+});
+
+/** Three notes link to Hub, one of them also to Side. Two are tagged. */
+const LINKED: Tagged[] = [
+	{ path: "a.md", tags: ["#x"], links: ["Hub.md"], created: at(1) },
+	{ path: "b.md", tags: ["#x"], links: ["Hub.md", "Side.md"], created: at(2) },
+	{ path: "c.md", tags: [], links: ["Hub.md"], created: at(3) },
+	{ path: "Hub.md", tags: [], links: [], created: at(1) },
+];
+
+function modeButton(modal: ModalClass, text: string): HTMLButtonElement {
+	const button = [
+		...modal.contentEl.querySelectorAll<HTMLButtonElement>(".tag-size-history-modes button"),
+	].find((b) => b.textContent === text);
+	assert.ok(button, `no ${text} button`);
+	return button;
+}
+
+test("the pop-up opens counting tags, with a switch to links", () => {
+	const modal = open(LINKED);
+	assert.equal(modeButton(modal, "Tags").classList.contains("is-active"), true);
+	assert.equal(modeButton(modal, "Links").classList.contains("is-active"), false);
+	assert.deepEqual(rows(modal), [["#x", "2", true]]);
+	modal.close();
+});
+
+test("switching to links charts the notes linking to each note, and saves the mode", () => {
+	const modal = open(LINKED);
+	modeButton(modal, "Links").click();
+	assert.deepEqual(rows(modal), [
+		["Hub", "3", true],
+		["Side", "1", true],
+	]);
+	const text = chartText(modal);
+	assert.match(text, /Backlink history/);
+	assert.match(text, /Hub/);
+	assert.doesNotMatch(text, /#x/);
+	assert.equal(saved.at(-1)?.mode, "links");
+	assert.equal(modeButton(modal, "Links").classList.contains("is-active"), true);
+	assert.equal(
+		modal.contentEl.querySelector(".tag-size-history-nested"),
+		null,
+		"nested tags do not apply to links",
+	);
+	assert.equal(
+		modal.contentEl.querySelector(".tag-size-history-search")?.getAttribute("placeholder"),
+		"Filter notes",
+	);
+	modal.close();
+});
+
+test("link choices are saved by path and kept apart from tag choices", () => {
+	const modal = open(LINKED, { ...DEFAULT_SETTINGS, mode: "links", hiddenTags: ["x"] });
+	checkbox(modal, "Hub").click();
+	assert.doesNotMatch(chartText(modal), /Hub/);
+	assert.deepEqual(saved.at(-1)?.hiddenNotes, ["Hub.md"]);
+	assert.deepEqual(saved.at(-1)?.hiddenTags, ["x"]);
+	modeButton(modal, "Tags").click();
+	assert.deepEqual(rows(modal), [["#x", "2", false]]);
+	modal.close();
+});
+
+test("links mode in a vault with no links shows a message, and tags mode still works", () => {
+	const modal = open([{ tags: ["#x"], created: at(1) }], { ...DEFAULT_SETTINGS, mode: "links" });
+	const empty = modal.contentEl.querySelector(".tag-size-history-empty");
+	assert.ok(empty);
+	assert.equal(empty.classList.contains("tag-size-history-hidden"), false);
+	assert.match(empty.textContent, /No links between notes yet/);
+	modeButton(modal, "Tags").click();
+	assert.equal(empty.classList.contains("tag-size-history-hidden"), true);
+	assert.match(chartText(modal), /#x/);
 	modal.close();
 });

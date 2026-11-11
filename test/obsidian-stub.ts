@@ -20,6 +20,12 @@ export function installDomHelpers(win: Window & typeof globalThis): void {
 		addClass(this: HTMLElement, cls: string): void {
 			this.classList.add(cls);
 		},
+		toggleClass(this: HTMLElement, cls: string, on: boolean): void {
+			this.classList.toggle(cls, on);
+		},
+		setText(this: HTMLElement, text: string): void {
+			this.textContent = text;
+		},
 		createEl(this: HTMLElement, tag: string, o: CreateOptions = {}): HTMLElement {
 			const el = this.ownerDocument.createElement(tag);
 			if (o.cls) el.className = o.cls;
