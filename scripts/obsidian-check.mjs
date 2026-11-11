@@ -420,7 +420,9 @@ async function recordDemo(cdp) {
 
 	reel("grow");
 	await page(`await closeAll(); app.commands.executeCommandById("${ID}:open");`);
-	await hold(3200);
+	// The lines take 1.4 seconds to draw. Stay on the finished chart for most of the loop, so the
+	// picture is not caught half drawn.
+	await hold(5500);
 	cut("grow.gif");
 
 	// The chart is fully drawn by now. Sweep the tooltip across, then let it go before pressing anything.
