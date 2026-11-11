@@ -34,7 +34,7 @@ src/               the plugin, TypeScript only
 test/              tests and test helpers, TypeScript only
 scripts/           check-layout.mjs, deploy.sh, obsidian-check.mjs
 docs/decisions/    numbered decision records, NNNN-title.md
-docs/images/       README pictures, PNG only
+docs/images/       README pictures: PNG stills and the demo GIF
 .github/           CI workflows and PR template
 .githooks/         pre-commit and commit-msg hooks
 .scratch/          gitignored; throwaway scripts, experiments, notes
@@ -52,7 +52,7 @@ npm test       # tests only
 npm run build  # writes main.js (gitignored)
 scripts/deploy.sh /path/to/vault   # copy a build into a vault to try it
 make obsidian-check                # run the plugin in a real, throwaway Obsidian (needs Obsidian)
-make readme-images                 # the same, and refresh the pictures in docs/images/
+make readme-images                 # the same, and refresh the pictures and demo.gif in docs/images/ (needs ffmpeg)
 ```
 
 `make check` runs, in order: prettier check, eslint with zero warnings (strict type-checked rules, complexity limits, the Obsidian rules), `tsc --noEmit` in strict mode, knip for dead code, dependency-cruiser for module boundaries, the layout check, the tests, and a production build. The pre-commit hook and CI both run exactly `make check`. The commit-msg hook and CI also check conventional commits.
@@ -66,6 +66,8 @@ make readme-images                 # the same, and refresh the pictures in docs/
 - Frontmatter and `data.json` are untrusted. Read saved settings through `normalizeSettings` and frontmatter dates through the date parser in `history`.
 - The UI modules are tested under jsdom with a stubbed `obsidian` module (`test/obsidian-stub.ts`). To see a change in real Obsidian, run `make obsidian-check` (decision 0009): it starts a separate Obsidian with its own temp profile and vault, so the owner's Obsidian is never touched, prints one line per check, and leaves screenshots in `.scratch/obsidian-check/`. Add a check to `CHECKS` in the script for new user-facing behaviour, and empty `.scratch/` before ending the session.
 - In the real-Obsidian check, wait about two seconds after changing the chart before taking a picture. New lines draw in over a second, and a picture taken sooner shows them cut short.
+- The chart is made when its container first has a size, not when the pop-up opens (`src/chart.ts`). A pop-up's content has no size at the moment `onOpen` runs, and a chart made then is resized at once, which cancels the lines drawing in. The `grows` check in the real-Obsidian script guards this.
+- When recording, do not take clipped screenshots between pointer moves. A clipped screenshot briefly changes the page's size, the chart redraws, and the tooltip jumps. The recording takes whole-page frames and ffmpeg crops them.
 - Obsidian 1.15 does not draw its settings in the main window's page, so the check reads the settings tab through `app.setting.activeTab` and takes no picture of it.
 - Commits in this repo use the owner's GitHub noreply address (`git config user.email` is set per repo). The repo is public, so do not commit a personal email address.
 - `main` is protected: changes arrive by pull request, and the `check` job must pass. Renaming that job breaks the requirement.

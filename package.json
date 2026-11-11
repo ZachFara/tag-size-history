@@ -1,6 +1,6 @@
 {
 	"name": "tag-size-history",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Graph of the number of notes with each tag over time. Obsidian plugin.",
 	"main": "main.js",
 	"private": true,

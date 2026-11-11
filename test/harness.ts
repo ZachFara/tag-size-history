@@ -17,12 +17,20 @@ function giveElementsASize(win: Window & typeof globalThis): void {
 	});
 }
 
+/** Reports once when it starts observing, as a browser's does, and never again: jsdom resizes nothing. */
 class ResizeObserverStub {
-	observe(): void {
-		// jsdom never resizes anything
+	private readonly report: () => void;
+
+	constructor(report: () => void) {
+		this.report = report;
 	}
+
+	observe(): void {
+		this.report();
+	}
+
 	disconnect(): void {
-		// nothing was observed
+		// nothing more will be reported
 	}
 }
 
