@@ -1,6 +1,6 @@
 # Tag Size History
 
-See how your tags have grown. Tag Size History is an Obsidian plugin that draws one line per tag, showing how many notes carry that tag over time. It is inspired by [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by Technerium.
+See how your tags have grown. Tag Size History is an Obsidian plugin that draws one line per tag, showing how many notes carry that tag over time. It can do the same for links: one line per note, showing how many notes link to it. It is inspired by [Vault Size History](https://github.com/technerium/obsidian-vault-size-history) by Technerium.
 
 ![The pop-up opens and a line per tag draws in from left to right, two years of notes in a second](docs/images/grow.gif)
 
@@ -21,6 +21,16 @@ The chart follows your theme, light or dark.
 
 ![The same chart in the light theme](docs/images/chart-light.png)
 
+## Links mode
+
+Press **Links** in the panel to chart links instead of tags. Each line is one of your notes, and it shows how many notes link to it over time, so you can see which notes grew into hubs and when. The largest are shown first, and you can switch any note on or off as with tags.
+
+![Links mode: one line per note, counting the notes that link to it](docs/images/links.png)
+
+A linking note counts once, from its own date, however many links it has to the same note.
+
+## Nested tags
+
 With **Group nested tags** off, nested tags get lines of their own:
 
 ![Nested tags such as project/alpha and project/beta drawn as separate lines](docs/images/nested.png)
@@ -31,7 +41,7 @@ With **Group nested tags** off, nested tags get lines of their own:
 | --- | --- | --- |
 | Date source | The date from which a note counts toward its tags: when it was created, when it was last modified, or a date in a frontmatter property. | Created |
 | Frontmatter property | The property that holds the date, when the date source is a frontmatter property. A note without a date there uses its creation time. | `created` |
-| Number of tags | How many of the largest tags the chart shows. | 10 |
+| Number of lines | How many of the largest tags, or most-linked notes, the chart shows. | 10 |
 | Group nested tags | Count nested tags toward their top-level tag only. | On |
 
 The plugin works offline. It reads only the notes in your vault, sends nothing anywhere, and saves only its own settings.
@@ -42,7 +52,7 @@ The plugin does not record anything over time. Each time you open the chart, it 
 
 This has two limits:
 
-- It cannot know when a tag was added to a note. A tag added last week to a note from 2022 counts from 2022.
+- It cannot know when a tag or a link was added to a note. A tag added last week to a note from 2022 counts from 2022.
 - Deleted notes are not counted.
 
 If file creation times in your vault are wrong, for example after copying the vault or syncing it to a new machine, put the date in a frontmatter property and set **Date source** to **Frontmatter property**.

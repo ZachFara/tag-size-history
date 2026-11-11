@@ -1,4 +1,4 @@
-import type { ChartData, DateSource, NoteRecord, TagChoices, TagHistory } from "./types.ts";
+import type { ChartData, Choices, DateSource, History, NoteRecord } from "./types.ts";
 
 /** The start of the local calendar day that `ms` falls in. */
 export function startOfDay(ms: number): number {
@@ -48,7 +48,8 @@ export interface CountOptions {
 }
 
 interface Tally {
-	tag: string;
+	key: string;
+	name: string;
 	/** Notes added per day. */
 	added: Map<number, number>;
 }
@@ -64,20 +65,32 @@ function noteTags(note: NoteRecord, groupNested: boolean): Map<string, string> {
 	return tags;
 }
 
-function tally(notes: NoteRecord[], options: CountOptions): Map<string, Tally> {
+/** The notes one note links to, each once, leaving out a link to itself. */
+function noteLinks(note: NoteRecord): Map<string, string> {
+	const links = new Map<string, string>();
+	for (const target of note.links) if (target !== note.path) links.set(target, target);
+	return links;
+}
+
+/** Counts each note, on its day, toward everything `subjects` says it counts toward. */
+function tally(
+	notes: NoteRecord[],
+	dateSource: DateSource,
+	subjects: (note: NoteRecord) => Map<string, string>,
+): Tally[] {
 	const tallies = new Map<string, Tally>();
 	for (const note of notes) {
-		const day = startOfDay(noteDate(note, options.dateSource));
-		for (const [key, tag] of noteTags(note, options.groupNested)) {
-			const entry = tallies.get(key) ?? { tag, added: new Map<number, number>() };
+		const day = startOfDay(noteDate(note, dateSource));
+		for (const [key, name] of subjects(note)) {
+			const entry = tallies.get(key) ?? { key, name, added: new Map<number, number>() };
 			entry.added.set(day, (entry.added.get(day) ?? 0) + 1);
 			tallies.set(key, entry);
 		}
 	}
-	return tallies;
+	return [...tallies.values()];
 }
 
-function toHistory({ tag, added }: Tally): TagHistory {
+function toHistory({ key, name, added }: Tally): History {
 	let total = 0;
 	const days = [...added.entries()]
 		.sort(([a], [b]) => a - b)
@@ -85,50 +98,68 @@ function toHistory({ tag, added }: Tally): TagHistory {
 			total += count;
 			return [day, total];
 		});
-	return { tag, total, days };
+	return { key, name, total, days };
+}
+
+/** Largest first, then by name. */
+function ranked(histories: History[]): History[] {
+	return histories.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
 
 /**
  * Each tag's note count over time, largest tag first and then by name.
  * A note counts toward a tag from its date. Tags differing only in case are one tag.
  */
-export function tagHistories(notes: NoteRecord[], options: CountOptions): TagHistory[] {
-	return [...tally(notes, options).values()]
-		.map(toHistory)
-		.sort((a, b) => b.total - a.total || a.tag.localeCompare(b.tag));
+export function tagHistories(notes: NoteRecord[], options: CountOptions): History[] {
+	return ranked(
+		tally(notes, options.dateSource, (note) => noteTags(note, options.groupNested)).map(toHistory),
+	);
+}
+
+/** `Folder/Note.md` becomes `Note`. */
+function noteName(path: string): string {
+	const file = path.slice(path.lastIndexOf("/") + 1);
+	return file.endsWith(".md") ? file.slice(0, -3) : file;
 }
 
 /**
- * The tags that have a line: the largest `topTags` of the ranked `histories`, plus the tags switched on,
- * minus the tags switched off.
+ * For each note that is linked to, the number of notes linking to it over time, most-linked first.
+ * A linking note counts from its own date, and once however many links it has to the same note.
+ * Notes are shown by name, or by path when two linked notes share a name.
  */
-export function shownHistories(histories: TagHistory[], choices: TagChoices): TagHistory[] {
-	const on = new Set(choices.shownTags);
-	const off = new Set(choices.hiddenTags);
-	return histories.filter((history, rank) => {
-		const key = history.tag.toLowerCase();
-		return (rank < choices.topTags || on.has(key)) && !off.has(key);
+export function linkHistories(notes: NoteRecord[], dateSource: DateSource): History[] {
+	const histories = tally(notes, dateSource, noteLinks).map(toHistory);
+	const uses = new Map<string, number>();
+	for (const { key } of histories) uses.set(noteName(key), (uses.get(noteName(key)) ?? 0) + 1);
+	const named = histories.map((history) => {
+		const name = noteName(history.key);
+		return { ...history, name: uses.get(name) === 1 ? name : history.key.replace(/\.md$/, "") };
 	});
+	return ranked(named);
 }
 
-/** The choices after switching one tag on or off. Only a choice that differs from the largest tags is kept. */
-export function toggleTag(
-	histories: TagHistory[],
-	choices: TagChoices,
-	tag: string,
-	on: boolean,
-): TagChoices {
-	const key = tag.toLowerCase();
-	const inTop = histories.slice(0, choices.topTags).some((h) => h.tag.toLowerCase() === key);
-	const shownTags = choices.shownTags.filter((t) => t !== key);
-	const hiddenTags = choices.hiddenTags.filter((t) => t !== key);
-	if (on && !inTop) shownTags.push(key);
-	if (!on && inTop) hiddenTags.push(key);
-	return { topTags: choices.topTags, shownTags, hiddenTags };
+/**
+ * The lines that are shown: the largest `top` of the ranked `histories`, plus those switched on,
+ * minus those switched off.
+ */
+export function shownHistories(histories: History[], choices: Choices): History[] {
+	const on = new Set(choices.shown);
+	const off = new Set(choices.hidden);
+	return histories.filter(({ key }, rank) => (rank < choices.top || on.has(key)) && !off.has(key));
 }
 
-/** A tag's count on each of `days`, carrying the last count forward. Zero before its first note. */
-function countsOn(history: TagHistory, days: number[]): number[] {
+/** The choices after switching one line on or off. Only a choice that differs from the largest is kept. */
+export function toggleLine(histories: History[], choices: Choices, key: string, on: boolean): Choices {
+	const inTop = histories.slice(0, choices.top).some((h) => h.key === key);
+	const shown = choices.shown.filter((k) => k !== key);
+	const hidden = choices.hidden.filter((k) => k !== key);
+	if (on && !inTop) shown.push(key);
+	if (!on && inTop) hidden.push(key);
+	return { top: choices.top, shown, hidden };
+}
+
+/** A line's count on each of `days`, carrying the last count forward. Zero before its first note. */
+function countsOn(history: History, days: number[]): number[] {
 	let next = 0;
 	let count = 0;
 	return days.map((day) => {
@@ -140,10 +171,10 @@ function countsOn(history: TagHistory, days: number[]): number[] {
 	});
 }
 
-/** Puts the given tags on one shared list of days, ending today, so every line has a point on every day. */
-export function chartData(histories: TagHistory[], now: number): ChartData {
+/** Puts the given lines on one shared list of days, ending today, so every line has a point on every day. */
+export function chartData(histories: History[], now: number): ChartData {
 	const all = new Set<number>([startOfDay(now)]);
 	for (const history of histories) for (const [day] of history.days) all.add(day);
 	const days = [...all].sort((a, b) => a - b);
-	return { days, lines: histories.map((h) => ({ tag: h.tag, counts: countsOn(h, days) })) };
+	return { days, lines: histories.map((h) => ({ name: h.name, counts: countsOn(h, days) })) };
 }

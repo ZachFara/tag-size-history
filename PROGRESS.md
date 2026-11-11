@@ -15,6 +15,8 @@ One task per branch and PR, in order. Each starts at the entry point named and w
 - [x] **T5. Check in a real Obsidian, README with pictures.** Entry: `make obsidian-check`. Runs the plugin in a throwaway Obsidian with a sample vault, checks the pop-up draws, and saves README pictures. Done when: the check passes locally and the README shows a real screenshot.
 - [x] **T6. Hand over 0.1.0.** The build is copied into the owner's test vault with `scripts/deploy.sh`, and the Linear ticket has a summary. No tag is pushed; tagging is publishing and waits for the owner.
 
+- [ ] **T7. Links mode.** Entry: the Tags and Links buttons in the pop-up. A line per linked note, counting the notes that link to it over time. Built on branch `feat/link-history` and waiting in a pull request for the owner. Not released: merging it needs a version bump, a tag, and "Check for new releases" on the directory entry.
+
 ## Ideas not asked for
 
 Listed so they are not lost. None is planned.
@@ -41,3 +43,4 @@ Nothing is queued. The plugin is listed at https://community.obsidian.md/plugins
 - Obsidian 1.13 and later draw the settings tab from `getSettingDefinitions()` (decision 0008). `Plugin` now has its own `settings` member, so the plugin class declares `override settings`.
 - The first run in a real Obsidian showed that hovering one line dimmed all the others (`emphasis.focus`), and that the legend beside the title ran out of room. Both are fixed: no dimming, and the legend has its own row.
 - The lines never drew in on opening until 0.1.2, because the chart was made before the pop-up had a size. Recording the README's moving pictures is what showed it.
+- Links mode reuses the tag machinery: `history` counts anything a note "counts toward", keyed by lower-case tag or by note path (decision 0010).

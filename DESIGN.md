@@ -4,7 +4,7 @@ Source: Linear MIT-655, "Make a simple plugin called tag size history which show
 
 ## Purpose
 
-An Obsidian plugin that shows how many notes carry each tag, over time, as a line chart with one line per tag. It should look and feel like the Vault Size History plugin's chart: a pop-up with a title, a legend, a date axis, a count axis, and a hover tooltip that lists every line's value on that date.
+An Obsidian plugin that shows how many notes carry each tag, over time, as a line chart with one line per tag. A second mode, added at the owner's request on 2026-11-10, shows how many notes link to each note over time. It should look and feel like the Vault Size History plugin's chart: a pop-up with a title, a legend, a date axis, a count axis, and a hover tooltip that lists every line's value on that date.
 
 ## What the owner decided
 
@@ -44,22 +44,37 @@ Known limits, stated in the README: the chart cannot know when a tag was added t
 - In the pop-up, any tag can be switched on or off. These choices are saved and applied on top of the top N: a tag switched on stays on even when it is outside the top N, and a tag switched off stays off even when it is inside.
 - **Reset** in the pop-up clears the saved choices, so the chart goes back to the top N.
 
+## Links mode
+
+The pop-up has two modes, **Tags** and **Links**. The mode is switched in the pop-up and remembered.
+
+In links mode a line belongs to a note, and its value on a day is the number of notes that link to that note and whose date is on or before that day. So the chart shows which notes became hubs, and when.
+
+- Only links between Markdown notes count, as Obsidian resolves them. Links to attachments and links that lead nowhere do not.
+- A note that links to the same note several times counts once. A note's link to itself does not count.
+- A linking note counts from its own date, chosen by the same **Date source** setting as tags. The same limit applies: the chart cannot know when a link was added to an existing note.
+- A note is shown by its name, or by its path when two linked notes share a name.
+- Lines are ranked by how many notes link to them now. The first N are shown, with N from the **Number of lines** setting, which both modes share.
+- Switching lines on and off works as for tags. The choices are saved separately from the tag choices, by note path. A choice for a note that is later renamed or deleted has no effect.
+- **Group nested tags** does not apply and is not shown.
+- The chart's title is "Backlink history". With no links between notes, the pop-up says so.
+
 ## Entry points
 
 Nothing is built that none of these reach.
 
 1. **Ribbon icon** "Tag size history": opens the pop-up.
 2. **Command** "Open chart" (shown by Obsidian as "Tag Size History: Open chart"): opens the pop-up.
-3. **Settings tab**: Date source, Frontmatter property (shown when the source is a frontmatter property), Number of tags, Group nested tags.
+3. **Settings tab**: Date source, Frontmatter property (shown when the source is a frontmatter property), Number of lines, Group nested tags.
 
 ## The pop-up
 
 A wide modal with two parts.
 
 - **Chart**: title "Tag size history", a legend of the shown tags, a date axis, a count axis starting at zero, and one line per shown tag. Hovering shows a tooltip with the date and each shown tag's count, as in Vault Size History. Colours and text follow the Obsidian theme, light or dark.
-- **Tag panel**: a search box, the **Group nested tags** switch, a **Reset** button, and a list of every tag with its note count and a checkbox. Checking a tag adds its line, unchecking removes it. The list is ordered by note count.
+- **Tag panel**: the **Tags** and **Links** buttons, a search box, the **Group nested tags** switch, a **Reset** button, and a list of every tag with its note count and a checkbox. Checking a tag adds its line, unchecking removes it. The list is ordered by note count.
 
-When the vault has no tagged notes, the pop-up says so instead of drawing an empty chart.
+When the vault has nothing to count in the current mode, the pop-up says so in place of the chart. The mode buttons stay, so the other mode can still be opened.
 
 The pop-up reads the vault when it opens. It is not kept in sync while open; reopening it shows the current state.
 
@@ -71,10 +86,13 @@ Saved in the plugin's `data.json`. Saved data is untrusted: it is read through o
 | --- | --- | --- |
 | Date source | Created, Modified, Frontmatter property | Created |
 | Frontmatter property | text | `created` |
-| Number of tags | whole number, 1 to 50 | 10 |
+| Mode | Tags, Links (set in the pop-up) | Tags |
+| Number of lines | whole number, 1 to 50 | 10 |
 | Group nested tags | on, off | on |
 | Tags switched on | list of tags | empty |
 | Tags switched off | list of tags | empty |
+| Notes switched on | list of note paths | empty |
+| Notes switched off | list of note paths | empty |
 
 ## Modules
 
@@ -82,11 +100,11 @@ Nine modules in `src/`. `make check` enforces these imports.
 
 ```
 types          leaf, imports nothing
-settings       defaults and normalizing of saved settings; imports types
-history        note dates, tag counting, series, ranking, shown tags; imports types
+settings       defaults, normalizing of saved settings, each mode's choices; imports types
+history        note dates, tag and link counting, series, ranking, shown lines; imports types
 chart-option   builds the chart description (a plain object) from series; imports types
 chart          draws a chart description with ECharts; imports echarts, chart-option, types
-vault-notes    reads notes and their tags from the vault; imports obsidian, types
+vault-notes    reads notes with their tags and links from the vault; imports obsidian, types
 history-modal  the pop-up; imports obsidian, chart, chart-option, history, settings, types
 settings-tab   the settings tab; imports obsidian, settings, types
 main           the plugin; the only module that wires the others together

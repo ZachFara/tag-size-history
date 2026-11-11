@@ -9,13 +9,22 @@
 	height: min(620px, 70vh);
 }
 
-.tag-size-history-chart {
+.tag-size-history-main {
 	flex: 1 1 auto;
 	min-width: 0;
 	height: 100%;
 }
 
-/* The tag panel: filter, reset, then a scrolling list of tags. */
+.tag-size-history-chart {
+	width: 100%;
+	height: 100%;
+}
+
+.tag-size-history-hidden {
+	display: none;
+}
+
+/* The panel: tags or links, filter, reset, then a scrolling list. */
 .tag-size-history-panel {
 	flex: 0 0 220px;
 	display: flex;
@@ -23,6 +32,20 @@
 	gap: var(--size-4-2);
 	min-height: 0;
 	padding-top: var(--size-4-6);
+}
+
+.tag-size-history-modes {
+	display: flex;
+	gap: var(--size-4-1);
+}
+
+.tag-size-history-modes button {
+	flex: 1 1 0;
+}
+
+.tag-size-history-modes button.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
 }
 
 .tag-size-history-search {
@@ -84,7 +107,7 @@
 		height: auto;
 	}
 
-	.tag-size-history-chart {
+	.tag-size-history-main {
 		flex: none;
 		height: 55vh;
 	}

@@ -36,8 +36,8 @@ export class TagHistorySettingTab extends PluginSettingTab {
 				control: { type: "text", key: "frontmatterProperty", placeholder: "created" },
 			},
 			{
-				name: "Number of tags",
-				desc: "How many of the largest tags the chart shows.",
+				name: "Number of lines",
+				desc: "How many of the largest tags, or most-linked notes, the chart shows.",
 				control: { type: "number", key: "topTags", min: MIN_TOP_TAGS, max: MAX_TOP_TAGS, step: 1 },
 			},
 			{

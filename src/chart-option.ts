@@ -53,8 +53,6 @@ export interface ChartOption {
 	series: LineSeries[];
 }
 
-const CHART_TITLE = "Tag size history";
-
 /** Leaves a key out when the theme has no value for it, so ECharts keeps its default. */
 function colour(value: string): { color?: string } {
 	return value === "" ? {} : { color: value };
@@ -62,7 +60,7 @@ function colour(value: string): { color?: string } {
 
 function series(data: ChartData): LineSeries[] {
 	return data.lines.map((line) => ({
-		name: `#${line.tag}`,
+		name: line.name,
 		type: "line",
 		showSymbol: false,
 		symbolSize: 6,
@@ -71,21 +69,21 @@ function series(data: ChartData): LineSeries[] {
 	}));
 }
 
-/** One line per tag over a date axis, with a legend and a tooltip listing every line on the hovered date. */
-export function buildChartOption(data: ChartData, theme: ChartTheme): ChartOption {
+/** One line per tag or note over a date axis, with a legend and a tooltip listing every line on the hovered date. */
+export function buildChartOption(data: ChartData, theme: ChartTheme, title: string): ChartOption {
 	const text = colour(theme.text);
 	const muted = colour(theme.muted);
 	return {
 		backgroundColor: "transparent",
 		animationDuration: 1400,
 		textStyle: { ...text, ...(theme.font === "" ? {} : { fontFamily: theme.font }) },
-		title: { text: CHART_TITLE, left: 8, top: 4, textStyle: { ...text, fontSize: 16, fontWeight: 600 } },
+		title: { text: title, left: 8, top: 4, textStyle: { ...text, fontSize: 16, fontWeight: 600 } },
 		legend: {
 			type: "scroll",
 			top: 34,
 			left: 8,
 			right: 16,
-			data: data.lines.map((line) => `#${line.tag}`),
+			data: data.lines.map((line) => line.name),
 			textStyle: text,
 		},
 		tooltip: {
