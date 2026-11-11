@@ -22,6 +22,7 @@ Listed so they are not lost. None is planned.
 - Record counts day by day, so tags added to old notes and deleted notes show correctly (decision 0003 explains why this was left out).
 - Keep the pop-up in sync while it is open.
 - A picture of the settings tab in the README. Obsidian 1.15 does not draw settings in the main window's page, so the check cannot photograph it yet.
+- Add GitHub artifact attestations to the release workflow. Obsidian's review recommends them; it is advice, not an error.
 - Try the plugin on mobile. `isDesktopOnly` is false and the layout has a narrow-screen rule, but it has not been run on a phone.
 
 ## Open Questions
@@ -30,7 +31,7 @@ None.
 
 ## Next steps
 
-The owner asked for the plugin to be posted to the Obsidian community directory. Tag 0.1.0 was pushed before the built file carried the ECharts licence notice, so 0.1.1 was the first release. 0.1.2 fixes the lines not drawing in when the pop-up opens. The owner approved the submission and it was made on 2026-11-10; the entry is at https://community.obsidian.md/account/plugins/tag-size-history. After each release, press "Check for new releases" there.
+Nothing is queued. The plugin is listed at https://community.obsidian.md/plugins/tag-size-history (published 2026-11-10, with the owner's approval). After each new release, open the entry under Your plugins on that site and press "Check for new releases".
 
 ## Learned
 
